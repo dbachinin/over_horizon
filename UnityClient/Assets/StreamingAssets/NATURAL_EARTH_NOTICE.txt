@@ -1,0 +1,4 @@
+Geographic linework: Natural Earth, 1:110m vector data.
+Source: https://www.naturalearthdata.com/
+Repository: https://github.com/nvkelso/natural-earth-vector
+Natural Earth data is in the public domain.

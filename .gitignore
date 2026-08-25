@@ -1,0 +1,56 @@
+# Local Codex/agent state
+/.agents/
+/.codex/
+/.utmp/
+
+# IDE and operating-system files
+/.idea/
+/.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Android / Gradle
+/.gradle/
+/**/build/
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.apks
+*.jks
+*.keystore
+
+# Unity generated directories
+/UnityClient/[Ll]ibrary/
+/UnityClient/[Tt]emp/
+/UnityClient/[Oo]bj/
+/UnityClient/[Bb]uild/
+/UnityClient/[Bb]uilds/
+/UnityClient/[Ll]ogs/
+/UnityClient/[Uu]ser[Ss]ettings/
+/UnityClient/MemoryCaptures/
+/UnityClient/Recordings/
+
+# Unity-generated IDE files
+/UnityClient/*.csproj
+/UnityClient/*.sln
+/UnityClient/*.suo
+/UnityClient/*.user
+/UnityClient/*.userprefs
+/UnityClient/*.pidb
+/UnityClient/*.booproj
+/UnityClient/*.svd
+/UnityClient/*.pdb
+/UnityClient/*.mdb
+/UnityClient/*.opendb
+/UnityClient/*.VC.db
+
+# Native and diagnostic output
+*.log
+*.tmp
+*.swp
+*.hprof
+crashlytics-build.properties

@@ -1,0 +1,8 @@
+/home/dbachinin/Work/OverHorizon/UnityClient/.utmp/Debug/3bd323sz/x86_64/CMakeFiles/edit_cache.dir
+/home/dbachinin/Work/OverHorizon/UnityClient/.utmp/Debug/3bd323sz/x86_64/CMakeFiles/rebuild_cache.dir
+/home/dbachinin/Work/OverHorizon/UnityClient/.utmp/Debug/3bd323sz/x86_64/GameActivity/CMakeFiles/game.dir
+/home/dbachinin/Work/OverHorizon/UnityClient/.utmp/Debug/3bd323sz/x86_64/GameActivity/CMakeFiles/edit_cache.dir
+/home/dbachinin/Work/OverHorizon/UnityClient/.utmp/Debug/3bd323sz/x86_64/GameActivity/CMakeFiles/rebuild_cache.dir
+/home/dbachinin/Work/OverHorizon/UnityClient/.utmp/Debug/3bd323sz/x86_64/FramePacing/CMakeFiles/swappywrapper.dir
+/home/dbachinin/Work/OverHorizon/UnityClient/.utmp/Debug/3bd323sz/x86_64/FramePacing/CMakeFiles/edit_cache.dir
+/home/dbachinin/Work/OverHorizon/UnityClient/.utmp/Debug/3bd323sz/x86_64/FramePacing/CMakeFiles/rebuild_cache.dir
