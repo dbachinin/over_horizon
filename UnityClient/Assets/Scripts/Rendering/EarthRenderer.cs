@@ -17,6 +17,7 @@ namespace TransparentEarth.Rendering
         private LocationProvider _location;
         private Transform _globeRoot;
         private Transform _horizonRoot;
+        private Transform _antipodeFlag;
         private GeoBoundaryLayer _boundaries;
         private float _smoothedHaze = 1f;
         private Vector2 _lastPointer;
@@ -33,6 +34,9 @@ namespace TransparentEarth.Rendering
         public bool IsManuallyOriented => Quaternion.Angle(_globeRoot == null ? Quaternion.identity : _globeRoot.localRotation,
             Quaternion.identity) > .2f || Mathf.Abs(_manualLookPitch) > .2f;
         public float ManualLookPitchDegrees => _manualLookPitch;
+        public Vector3 AntipodeWorldPoint => _antipodeFlag == null
+            ? transform.position
+            : _antipodeFlag.position;
         public Vector3 HorizonWorldPoint => _horizonRoot == null
             ? Vector3.forward * HorizonDistance
             : _horizonRoot.TransformPoint(new Vector3(0, HorizonLocalY, HorizonDistance));
@@ -171,7 +175,9 @@ namespace TransparentEarth.Rendering
 
         public Transform CreateAntipodeFlag()
         {
-            return CreateFlagAtNormal(Vector3.down, "Exact antipode", true);
+            if (_antipodeFlag != null) return _antipodeFlag;
+            _antipodeFlag = CreateFlagAtNormal(Vector3.down, "Exact antipode", true);
+            return _antipodeFlag;
         }
 
         private Transform CreateFlagAtNormal(Vector3 normal, string label, bool isAntipode)
@@ -202,6 +208,7 @@ namespace TransparentEarth.Rendering
             mesh.RecalculateBounds();
             meshObject.GetComponent<MeshFilter>().sharedMesh = mesh;
             meshObject.GetComponent<MeshRenderer>().sharedMaterial = NewLineMaterial(color);
+            if (isAntipode) CreateAntipodeTarget(root, color);
             return root;
         }
 
@@ -228,6 +235,11 @@ namespace TransparentEarth.Rendering
             _hazeMaterial.SetFloat("_HazeAmount", _smoothedHaze);
             _earthMaterial.SetFloat("_HazeAmount", _smoothedHaze);
             _interiorMaterial.SetFloat("_HazeAmount", _smoothedHaze);
+            if (_antipodeFlag != null)
+            {
+                var pulse = 1f + Mathf.Sin(Time.unscaledTime * 4.2f) * .055f;
+                _antipodeFlag.localScale = Vector3.one * pulse;
+            }
         }
 
         private void LateUpdate()
@@ -370,6 +382,40 @@ namespace TransparentEarth.Rendering
             }
             ring.startWidth = ring.endWidth = .006f;
             ring.material = NewLineMaterial(TransparentEarthStyle.Mint);
+        }
+
+        private static void CreateAntipodeTarget(Transform parent, Color color)
+        {
+            var ring = new GameObject("Antipode Target Ring").AddComponent<LineRenderer>();
+            ring.transform.SetParent(parent, false);
+            ring.useWorldSpace = false;
+            ring.loop = true;
+            ring.positionCount = 48;
+            const float radius = .34f;
+            for (var i = 0; i < ring.positionCount; i++)
+            {
+                var angle = i / (float)ring.positionCount * Mathf.PI * 2f;
+                ring.SetPosition(i, new Vector3(Mathf.Cos(angle) * radius, .012f, Mathf.Sin(angle) * radius));
+            }
+            ring.startWidth = ring.endWidth = .018f;
+            ring.sharedMaterial = NewLineMaterial(color);
+
+            CreateTargetAxis("Antipode Target East West", parent,
+                new Vector3(-.48f, .014f, 0f), new Vector3(.48f, .014f, 0f), color);
+            CreateTargetAxis("Antipode Target North South", parent,
+                new Vector3(0f, .014f, -.48f), new Vector3(0f, .014f, .48f), color);
+        }
+
+        private static void CreateTargetAxis(string name, Transform parent, Vector3 start, Vector3 end, Color color)
+        {
+            var axis = new GameObject(name).AddComponent<LineRenderer>();
+            axis.transform.SetParent(parent, false);
+            axis.useWorldSpace = false;
+            axis.positionCount = 2;
+            axis.SetPosition(0, start);
+            axis.SetPosition(1, end);
+            axis.startWidth = axis.endWidth = .012f;
+            axis.sharedMaterial = NewLineMaterial(color);
         }
 
         private static Material NewLineMaterial(Color color) =>

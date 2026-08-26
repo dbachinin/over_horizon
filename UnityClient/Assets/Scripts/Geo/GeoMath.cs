@@ -39,6 +39,7 @@ namespace TransparentEarth.Geo
     public static class GeoMath
     {
         public const double EarthRadiusKm = 6371.0088;
+        public const double EarthDiameterKm = 2.0 * EarthRadiusKm;
         public const double EarthCircumferenceKm = 2.0 * Math.PI * EarthRadiusKm;
         public const double HalfCircumferenceKm = Math.PI * EarthRadiusKm;
         public const double OneThirdCircumferenceKm = EarthCircumferenceKm / 3.0;

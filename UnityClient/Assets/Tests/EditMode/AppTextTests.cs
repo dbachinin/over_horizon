@@ -29,5 +29,14 @@ namespace TransparentEarth.Tests
         {
             Assert.That(AppText.GetForLanguage(TextKey.Map, SystemLanguage.Japanese), Is.EqualTo("MAP"));
         }
+
+        [TestCase(SystemLanguage.English, 359d, "N")]
+        [TestCase(SystemLanguage.English, 45d, "NE")]
+        [TestCase(SystemLanguage.Russian, 180d, "Ю")]
+        [TestCase(SystemLanguage.SerboCroatian, 90d, "I")]
+        public void LocalizesCardinalDirection(SystemLanguage language, double bearing, string expected)
+        {
+            Assert.That(AppText.CardinalDirectionForLanguage(bearing, language), Is.EqualTo(expected));
+        }
     }
 }

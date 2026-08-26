@@ -22,6 +22,13 @@ namespace TransparentEarth.Tests
         }
 
         [Test]
+        public void ThroughEarthDistanceUsesDiameterNotSurfaceArc()
+        {
+            Assert.That(GeoMath.EarthDiameterKm, Is.EqualTo(GeoMath.EarthRadiusKm * 2d).Within(1e-9));
+            Assert.That(GeoMath.EarthDiameterKm, Is.LessThan(GeoMath.HalfCircumferenceKm));
+        }
+
+        [Test]
         public void NearbyNorthTargetUsesPositiveUnityZ()
         {
             var projection = GeoMath.Project(new GeoPoint(0, 0), new GeoPoint(1, 0));

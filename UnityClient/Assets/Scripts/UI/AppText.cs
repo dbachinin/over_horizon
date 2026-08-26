@@ -8,6 +8,7 @@ namespace TransparentEarth.I18n
         LookThroughHorizon, OtherSideOfEarth, PhysicalHorizon, Below, OnHorizon, Nearby,
         Equator, TropicCancer, TropicCapricorn, Greenwich, DateLine,
         LoadingMap, MapUnavailable, ExactAntipode, ThroughEarthDistance, FlagSaved,
+        AntipodePoint, NearestGeographicObject, Direction, SurfaceDistance,
         TransparentEarth, BeyondHorizon, On, Off, GlobeLayers, Grid, Continents, Countries, References,
         Overview, Antipode, Map, Places, Profile, Real, Live, Demo, Kilometers
     }
@@ -32,6 +33,10 @@ namespace TransparentEarth.I18n
             [TextKey.ExactAntipode] = "EXACT ANTIPODE",
             [TextKey.ThroughEarthDistance] = "DISTANCE THROUGH EARTH",
             [TextKey.FlagSaved] = "flag saved on the sphere",
+            [TextKey.AntipodePoint] = "ANTIPODE POINT",
+            [TextKey.NearestGeographicObject] = "NEAREST GEOGRAPHIC OBJECT",
+            [TextKey.Direction] = "DIRECTION",
+            [TextKey.SurfaceDistance] = "SURFACE DISTANCE",
             [TextKey.TransparentEarth] = "Transparent Earth",
             [TextKey.BeyondHorizon] = "Objects beyond the horizon",
             [TextKey.On] = "ON",
@@ -70,6 +75,10 @@ namespace TransparentEarth.I18n
             [TextKey.ExactAntipode] = "ТОЧНЫЙ АНТИПОД",
             [TextKey.ThroughEarthDistance] = "РАССТОЯНИЕ СКВОЗЬ ЗЕМЛЮ",
             [TextKey.FlagSaved] = "флажок сохранён на сфере",
+            [TextKey.AntipodePoint] = "ТОЧКА АНТИПОДА",
+            [TextKey.NearestGeographicObject] = "БЛИЖАЙШИЙ ГЕОГРАФИЧЕСКИЙ ОБЪЕКТ",
+            [TextKey.Direction] = "НАПРАВЛЕНИЕ",
+            [TextKey.SurfaceDistance] = "ПО ПОВЕРХНОСТИ",
             [TextKey.TransparentEarth] = "Прозрачная Земля",
             [TextKey.BeyondHorizon] = "Объекты за линией горизонта",
             [TextKey.On] = "ВКЛ",
@@ -108,6 +117,10 @@ namespace TransparentEarth.I18n
             [TextKey.ExactAntipode] = "TAČNI ANTIPOD",
             [TextKey.ThroughEarthDistance] = "UDALJENOST KROZ ZEMLJU",
             [TextKey.FlagSaved] = "zastavica je sačuvana na sferi",
+            [TextKey.AntipodePoint] = "TAČKA ANTIPODA",
+            [TextKey.NearestGeographicObject] = "NAJBLIŽI GEOGRAFSKI OBJEKAT",
+            [TextKey.Direction] = "PRAVAC",
+            [TextKey.SurfaceDistance] = "PO POVRŠINI",
             [TextKey.TransparentEarth] = "Prozirna Zemlja",
             [TextKey.BeyondHorizon] = "Objekti iza horizonta",
             [TextKey.On] = "UKLJ",
@@ -129,6 +142,22 @@ namespace TransparentEarth.I18n
         };
 
         public static string Get(TextKey key) => GetForLanguage(key, Application.systemLanguage);
+
+        public static string CardinalDirection(double bearingDegrees) =>
+            CardinalDirectionForLanguage(bearingDegrees, Application.systemLanguage);
+
+        public static string CardinalDirectionForLanguage(double bearingDegrees, SystemLanguage language)
+        {
+            var directions = language switch
+            {
+                SystemLanguage.Russian => new[] { "С", "СВ", "В", "ЮВ", "Ю", "ЮЗ", "З", "СЗ" },
+                SystemLanguage.SerboCroatian => new[] { "S", "SI", "I", "JI", "J", "JZ", "Z", "SZ" },
+                _ => new[] { "N", "NE", "E", "SE", "S", "SW", "W", "NW" }
+            };
+            var normalized = Mathf.Repeat((float)bearingDegrees, 360f);
+            var index = Mathf.FloorToInt((normalized + 22.5f) / 45f) % directions.Length;
+            return directions[index];
+        }
 
         public static string GetForLanguage(TextKey key, SystemLanguage language)
         {

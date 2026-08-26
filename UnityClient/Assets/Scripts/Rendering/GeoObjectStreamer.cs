@@ -15,7 +15,8 @@ namespace TransparentEarth.Rendering
     public sealed class GeoObjectStreamer : MonoBehaviour
     {
         private const int ZoneSizeDegrees = 20;
-        private const int MaximumVisibleObjects = 18;
+        private const int MaximumVisibleObjects = 28;
+        private const int MinimumGlobalObjects = 20;
         private const double NearbyRadiusKm = 30d;
         private const int MaximumNearbyObjects = 10;
         private readonly Dictionary<ZoneKey, List<City>> _zones = new();
@@ -111,8 +112,17 @@ namespace TransparentEarth.Rendering
             }
 
             LoadedZoneCount = focusedZones;
-            var desired = candidates.OrderByDescending(item => item.score)
-                .Take(MaximumVisibleObjects).ToDictionary(item => MarkerKey(item.city), item => item);
+            var ranked = candidates.OrderByDescending(item => item.score).ToList();
+            // Nearby OSM settlements must not push national capitals out of the focused sector.
+            var selected = ranked.Where(item => !item.nearby).Take(MinimumGlobalObjects).ToList();
+            var selectedKeys = selected.Select(item => MarkerKey(item.city)).ToHashSet();
+            foreach (var item in ranked)
+            {
+                if (selected.Count >= MaximumVisibleObjects) break;
+                if (!selectedKeys.Add(MarkerKey(item.city))) continue;
+                selected.Add(item);
+            }
+            var desired = selected.ToDictionary(item => MarkerKey(item.city), item => item);
 
             foreach (var key in _active.Keys.Where(key => !desired.ContainsKey(key)).ToArray())
             {

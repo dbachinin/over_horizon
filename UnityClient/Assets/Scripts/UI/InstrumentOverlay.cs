@@ -26,6 +26,7 @@ namespace TransparentEarth.UI
         private Texture2D _compassButton;
         private Texture2D _leaderRight;
         private Texture2D _leaderLeft;
+        private Texture2D _directionArrow;
         private GUIStyle _eyebrow;
         private GUIStyle _title;
         private GUIStyle _small;
@@ -34,6 +35,9 @@ namespace TransparentEarth.UI
         private GUIStyle _referenceLabel;
         private GUIStyle _buttonText;
         private bool _transparentEarth = true;
+        private bool _hasAntipodeObject;
+        private GeoPoint _resolvedAntipode;
+        private GeographicObjectDirection _nearestAntipodeObject;
         private int _tab;
 
         public void Initialize(Camera sceneCamera, DevicePoseProvider pose, LocationProvider location,
@@ -59,6 +63,7 @@ namespace TransparentEarth.UI
             _compassButton = Circle(new Color(.035f, .075f, .063f, .58f));
             _leaderRight = Leader(pointsRight: true);
             _leaderLeft = Leader(pointsRight: false);
+            _directionArrow = DirectionArrow();
         }
 
         private void OnGUI()
@@ -84,6 +89,7 @@ namespace TransparentEarth.UI
             {
                 Metrics(left, top, width, height, scale);
                 DrawMarkers(scale, left, width);
+                DrawAntipodeTarget(scale, left, width);
                 DrawReferenceLegends(scale);
                 OrientationButton(left, top, width);
             }
@@ -110,6 +116,7 @@ namespace TransparentEarth.UI
         private void DrawMarkers(float scale, float left, float width)
         {
             var horizonScreen = _camera.WorldToScreenPoint(_earth.HorizonWorldPoint);
+            var occupiedLabels = new List<Rect>();
             foreach (var marker in _markers)
             {
                 if (!_transparentEarth && marker.Projection.ElevationDegrees < -1) continue;
@@ -123,7 +130,6 @@ namespace TransparentEarth.UI
                     ? 1f - Mathf.Clamp01(Mathf.Abs(viewport.y - horizonScreen.y) / (Screen.height * .14f))
                     : 0f;
                 var labelLift = Mathf.SmoothStep(0f, 26f, horizonProximity);
-                var underlineY = y - 20f - labelLift;
                 var pulse = _earth.ScanPulseAt((float)marker.Projection.CentralAngleDegrees);
                 var reveal = marker.AccumulateReveal(
                     _earth.MarkerRevealAt((float)marker.Projection.CentralAngleDegrees));
@@ -131,20 +137,28 @@ namespace TransparentEarth.UI
                 var accent = marker.Accent;
                 accent.a = reveal * (.76f + pulse * .24f);
                 GUI.color = accent;
+                var underlineX = marker.HasLeaderLine
+                    ? pointsRight ? x + 21f : x - 139f
+                    : pointsRight ? x + 9f : x - 127f;
+                var textX = underlineX + 2f;
+                var labelRect = new Rect(textX - 5f, y - 40f - labelLift, 158f, 39f);
+                for (var attempt = 0; attempt < 5 && OverlapsAny(labelRect, occupiedLabels); attempt++)
+                {
+                    labelLift += 38f;
+                    labelRect.y = y - 40f - labelLift;
+                }
+                occupiedLabels.Add(labelRect);
+                var underlineY = y - 20f - labelLift;
                 if (marker.HasLeaderLine)
                 {
                     var leaderX = pointsRight ? x : x - 22f;
                     GUI.DrawTexture(new Rect(leaderX, underlineY, 22f, 20f + labelLift),
                         pointsRight ? _leaderRight : _leaderLeft);
                 }
-                var underlineX = marker.HasLeaderLine
-                    ? pointsRight ? x + 21f : x - 139f
-                    : pointsRight ? x + 9f : x - 127f;
-                var textX = underlineX + 2f;
                 if (horizonProximity > 0f)
                 {
                     GUI.color = new Color(1f, 1f, 1f, Mathf.Lerp(.42f, .88f, horizonProximity));
-                    GUI.DrawTexture(new Rect(textX - 5f, y - 40f - labelLift, 158f, 39f), _panel);
+                    GUI.DrawTexture(labelRect, _panel);
                     GUI.color = accent;
                 }
                 GUI.DrawTexture(new Rect(underlineX, underlineY, 118f, 1.25f + pulse * 1.1f), _white);
@@ -161,6 +175,15 @@ namespace TransparentEarth.UI
                 GUI.Label(new Rect(textX, y - 18f - labelLift, 154f, 16f), meta, _markerMeta);
                 GUI.color = Color.white;
             }
+        }
+
+        private static bool OverlapsAny(Rect candidate, List<Rect> occupied)
+        {
+            var padded = new Rect(candidate.x - 5f, candidate.y - 4f,
+                candidate.width + 10f, candidate.height + 8f);
+            foreach (var rect in occupied)
+                if (padded.Overlaps(rect)) return true;
+            return false;
         }
 
         private void DrawReferenceLegends(float scale)
@@ -221,9 +244,33 @@ namespace TransparentEarth.UI
             }
         }
 
+        private void DrawAntipodeTarget(float scale, float left, float width)
+        {
+            var viewport = _camera.WorldToScreenPoint(_earth.AntipodeWorldPoint);
+            if (viewport.z <= 0f || viewport.x < -80f || viewport.x > Screen.width + 80f ||
+                viewport.y < Screen.height * .20f || viewport.y > Screen.height * .82f) return;
+
+            var x = viewport.x / scale;
+            var y = (Screen.height - viewport.y) / scale;
+            var pulse = .5f + .5f * Mathf.Sin(Time.unscaledTime * 4.2f);
+            var pointsRight = x < left + width * .63f;
+            var underlineX = pointsRight ? x + 27f : x - 151f;
+            var leaderX = pointsRight ? x : x - 28f;
+            GUI.color = TransparentEarthStyle.Signal;
+            GUI.DrawTexture(new Rect(x - 7f - pulse * 2f, y - 1f, 14f + pulse * 4f, 2f), _white);
+            GUI.DrawTexture(new Rect(x - 1f, y - 7f - pulse * 2f, 2f, 14f + pulse * 4f), _white);
+            GUI.DrawTexture(new Rect(leaderX, y - 28f, 28f, 28f), pointsRight ? _leaderRight : _leaderLeft);
+            GUI.DrawTexture(new Rect(underlineX, y - 28f, 124f, 1.5f), _white);
+            GUI.DrawTexture(new Rect(underlineX + 2f, y - 47f, 152f, 19f), _panel);
+            GUI.Label(new Rect(underlineX + 5f, y - 47f, 146f, 18f),
+                AppText.Get(TextKey.AntipodePoint), _referenceLabel);
+            GUI.color = Color.white;
+        }
+
         private void DrawAntipode(float left, float top, float width, float height)
         {
             var antipode = GeoMath.Antipode(_location.Current);
+            var nearest = NearestAntipodeObject(antipode);
             _map.EnsureLoaded(antipode);
             var mapSize = width - 36;
             var mapRect = new Rect(left + 18, top + 92, mapSize, mapSize);
@@ -234,7 +281,9 @@ namespace TransparentEarth.UI
                 var markerX = mapRect.x + _map.MarkerUv.x * mapRect.width;
                 var markerY = mapRect.y + (1f - _map.MarkerUv.y) * mapRect.height;
                 GUI.color = TransparentEarthStyle.Signal;
-                GUI.DrawTexture(new Rect(markerX - 7, markerY - 7, 14, 14), _white);
+                GUI.DrawTexture(new Rect(markerX - 10, markerY - 1, 20, 2), _white);
+                GUI.DrawTexture(new Rect(markerX - 1, markerY - 10, 2, 20), _white);
+                GUI.DrawTexture(new Rect(markerX - 4, markerY - 4, 8, 8), _white);
                 GUI.color = Color.white;
             }
             else
@@ -260,7 +309,48 @@ namespace TransparentEarth.UI
             GUI.Label(new Rect(factsRect.x + 14, factsRect.y + 9, factsRect.width - 28, 18),
                 AppText.Get(TextKey.ThroughEarthDistance), _eyebrow);
             GUI.Label(new Rect(factsRect.x + 14, factsRect.y + 27, factsRect.width - 28, 22),
-                $"{GeoMath.HalfCircumferenceKm:0} {AppText.Get(TextKey.Kilometers)}  ·  {AppText.Get(TextKey.FlagSaved)}", _small);
+                $"{GeoMath.EarthDiameterKm:0} {AppText.Get(TextKey.Kilometers)}  ·  {AppText.Get(TextKey.FlagSaved)}", _small);
+
+            var objectRect = new Rect(factsRect.x, factsRect.yMax + 10, factsRect.width, 112);
+            GUI.DrawTexture(objectRect, _panel);
+            GUI.color = TransparentEarthStyle.Mint;
+            GUI.Label(new Rect(objectRect.x + 14, objectRect.y + 8, objectRect.width - 28, 18),
+                AppText.Get(TextKey.NearestGeographicObject), _eyebrow);
+            GUI.color = Color.white;
+            GUI.Label(new Rect(objectRect.x + 14, objectRect.y + 28, objectRect.width - 88, 22),
+                $"{nearest.Object.Name.ToUpperInvariant()} · {nearest.Object.Country}", _markerTitle);
+            var bearing = nearest.Projection.BearingDegrees;
+            GUI.Label(new Rect(objectRect.x + 14, objectRect.y + 53, objectRect.width - 92, 18),
+                $"{AppText.Get(TextKey.Direction)}  {AppText.CardinalDirection(bearing)} · {bearing:000}°", _markerMeta);
+            GUI.Label(new Rect(objectRect.x + 14, objectRect.y + 75, objectRect.width - 92, 18),
+                $"{AppText.Get(TextKey.SurfaceDistance)}  {nearest.Projection.DistanceKm:0} {AppText.Get(TextKey.Kilometers)}",
+                _markerMeta);
+            DrawDirectionArrow(new Rect(objectRect.xMax - 68, objectRect.y + 32, 48, 48), (float)bearing);
+            GUI.color = Color.white;
+        }
+
+        private GeographicObjectDirection NearestAntipodeObject(GeoPoint antipode)
+        {
+            if (!_hasAntipodeObject || GeoMath.DistanceKm(_resolvedAntipode, antipode) > 1d)
+            {
+                _resolvedAntipode = antipode;
+                _nearestAntipodeObject = AntipodeResolver.FindNearestNamedObject(antipode);
+                _hasAntipodeObject = true;
+            }
+            return _nearestAntipodeObject;
+        }
+
+        private void DrawDirectionArrow(Rect rect, float bearing)
+        {
+            var matrix = GUI.matrix;
+            var guiScale = Mathf.Max(.01f, matrix.m00);
+            var screenRect = new Rect(rect.x * guiScale, rect.y * guiScale,
+                rect.width * guiScale, rect.height * guiScale);
+            GUI.matrix = Matrix4x4.identity;
+            GUIUtility.RotateAroundPivot(bearing, screenRect.center);
+            GUI.color = TransparentEarthStyle.Signal;
+            GUI.DrawTexture(screenRect, _directionArrow);
+            GUI.matrix = matrix;
         }
 
         private void BottomDeck(float left, float top, float width, float height)
@@ -433,6 +523,33 @@ namespace TransparentEarth.UI
             texture.SetPixels32(pixels);
             texture.Apply(false, true);
             return texture;
+        }
+
+        private static Texture2D DirectionArrow()
+        {
+            const int size = 64;
+            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                hideFlags = HideFlags.HideAndDontSave,
+                filterMode = FilterMode.Bilinear
+            };
+            var pixels = new Color32[size * size];
+            for (var y = 8; y < 54; y++) PaintPixel(pixels, size, size / 2, y, 2);
+            for (var step = 0; step < 17; step++)
+            {
+                PaintPixel(pixels, size, size / 2 - step, 53 - step, 2);
+                PaintPixel(pixels, size, size / 2 + step, 53 - step, 2);
+            }
+            texture.SetPixels32(pixels);
+            texture.Apply(false, true);
+            return texture;
+        }
+
+        private static void PaintPixel(Color32[] pixels, int size, int centerX, int centerY, int radius)
+        {
+            for (var y = Mathf.Max(0, centerY - radius); y <= Mathf.Min(size - 1, centerY + radius); y++)
+            for (var x = Mathf.Max(0, centerX - radius); x <= Mathf.Min(size - 1, centerX + radius); x++)
+                pixels[y * size + x] = new Color32(255, 255, 255, 255);
         }
     }
 }
