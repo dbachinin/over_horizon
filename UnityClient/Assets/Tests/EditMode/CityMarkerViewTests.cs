@@ -23,6 +23,18 @@ namespace TransparentEarth.Tests
             Assert.That(Marker(31d, isNearbySettlement: true).IsNearby, Is.True);
         }
 
+        [Test]
+        public void MarkerAboveHorizonIsMovedToEarthSide()
+        {
+            Assert.That(CityMarkerView.ConstrainToEarthSide(720f, 500f, 24f), Is.EqualTo(476f));
+        }
+
+        [Test]
+        public void MarkerAlreadyBelowHorizonKeepsItsPosition()
+        {
+            Assert.That(CityMarkerView.ConstrainToEarthSide(420f, 500f, 24f), Is.EqualTo(420f));
+        }
+
         [TestCase(-.1, true)]
         [TestCase(0d, true)]
         [TestCase(.1, false)]

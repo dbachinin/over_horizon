@@ -16,7 +16,7 @@ namespace TransparentEarth.App
 
             Application.targetFrameRate = 60;
             Screen.sleepTimeout = SleepTimeout.NeverSleep;
-            var root = new GameObject("Transparent Earth App");
+            var root = new GameObject("OverHorizon App");
             Object.DontDestroyOnLoad(root);
             var location = root.AddComponent<LocationProvider>();
             var posePivot = new GameObject("Device Pose").AddComponent<DevicePoseProvider>();

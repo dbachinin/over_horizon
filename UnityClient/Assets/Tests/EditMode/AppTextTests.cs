@@ -7,9 +7,12 @@ namespace TransparentEarth.Tests
 {
     public sealed class AppTextTests
     {
-        [TestCase(SystemLanguage.English, TextKey.LookThroughHorizon, "Look through the horizon")]
-        [TestCase(SystemLanguage.Russian, TextKey.LookThroughHorizon, "Смотрите сквозь горизонт")]
-        [TestCase(SystemLanguage.SerboCroatian, TextKey.LookThroughHorizon, "Pogled kroz horizont")]
+        [TestCase(SystemLanguage.English, TextKey.LookThroughHorizon, "View through Earth")]
+        [TestCase(SystemLanguage.Russian, TextKey.LookThroughHorizon, "Вид сквозь Землю")]
+        [TestCase(SystemLanguage.SerboCroatian, TextKey.LookThroughHorizon, "Pogled kroz Zemlju")]
+        [TestCase(SystemLanguage.English, TextKey.TransparentEarth, "Display controls")]
+        [TestCase(SystemLanguage.Russian, TextKey.TransparentEarth, "Управление отображением")]
+        [TestCase(SystemLanguage.SerboCroatian, TextKey.TransparentEarth, "Upravljanje prikazom")]
         public void ResolvesSupportedLanguage(SystemLanguage language, TextKey key, string expected)
         {
             Assert.That(AppText.GetForLanguage(key, language), Is.EqualTo(expected));

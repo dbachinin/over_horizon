@@ -19,6 +19,9 @@ namespace TransparentEarth.Rendering
         public bool IsNearby => IsNearbySettlement || Projection.DistanceKm <= NearbyLeaderRadiusKm;
         public bool HasLeaderLine => Projection.DistanceKm <= GeoMath.OneThirdCircumferenceKm;
 
+        public static float ConstrainToEarthSide(float markerScreenY, float horizonScreenY, float gapPixels) =>
+            Mathf.Min(markerScreenY, horizonScreenY - Mathf.Max(0f, gapPixels));
+
         public CityMarkerView(City city, GeoProjection projection, Transform anchor, bool isNearbySettlement,
             Transform flag = null)
         {

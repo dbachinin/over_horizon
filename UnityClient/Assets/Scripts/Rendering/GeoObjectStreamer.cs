@@ -181,7 +181,7 @@ namespace TransparentEarth.Rendering
                     timeout = 20
                 };
                 request.SetRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-                request.SetRequestHeader("User-Agent", "TransparentEarth-Unity/1.0");
+                request.SetRequestHeader("User-Agent", "OverHorizon-Unity/1.0");
                 yield return request.SendWebRequest();
                 if (request.result == UnityWebRequest.Result.Success)
                 {

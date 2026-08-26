@@ -55,7 +55,7 @@ namespace TransparentEarth.Map
 
             var url = $"https://tile.openstreetmap.org/{Zoom}/{x}/{y}.png";
             using var request = UnityWebRequestTexture.GetTexture(url);
-            request.SetRequestHeader("User-Agent", "TransparentEarth/1.0 (Android; com.transparentearth.unity)");
+            request.SetRequestHeader("User-Agent", "OverHorizon/1.0 (Android; com.transparentearth.unity)");
             yield return request.SendWebRequest();
             if (request.result != UnityWebRequest.Result.Success)
             {

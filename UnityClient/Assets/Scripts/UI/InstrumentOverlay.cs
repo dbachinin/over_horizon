@@ -80,7 +80,7 @@ namespace TransparentEarth.UI
             var top = (Screen.height - safe.yMax) / scale;
             _earth.SetInteractionEnabled(_tab == 0);
 
-            GUI.Label(new Rect(left + 20, top + 16, 260, 18), "TRANSPARENT EARTH", _eyebrow);
+            GUI.Label(new Rect(left + 20, top + 16, 260, 18), "OVERHORIZON", _eyebrow);
             GUI.Label(new Rect(left + 20, top + 34, 330, 34),
                 _tab == 0 ? AppText.Get(TextKey.LookThroughHorizon) : AppText.Get(TextKey.OtherSideOfEarth), _title);
             StatusPill(new Rect(left + width - 82, top + 20, 62, 28));
@@ -123,6 +123,11 @@ namespace TransparentEarth.UI
                 var viewport = _camera.WorldToScreenPoint(marker.Anchor.position);
                 if (viewport.z <= 0 || viewport.x < -100 || viewport.x > Screen.width + 100 ||
                     viewport.y < Screen.height * .2f || viewport.y > Screen.height * .82f) continue;
+                if (horizonScreen.z > 0f)
+                {
+                    var earthSideGap = (marker.IsNearby ? 72f : 8f) * scale;
+                    viewport.y = CityMarkerView.ConstrainToEarthSide(viewport.y, horizonScreen.y, earthSideGap);
+                }
                 var x = viewport.x / scale;
                 var y = (Screen.height - viewport.y) / scale;
                 var pointsRight = x < left + width * .63f;
@@ -165,7 +170,7 @@ namespace TransparentEarth.UI
                 GUI.DrawTexture(new Rect(x - 3f - pulse, y - 3f - pulse, 6f + pulse * 2f, 6f + pulse * 2f), _white);
                 var titleStyle = marker.IsNearby ? _markerMeta : _markerTitle;
                 GUI.Label(new Rect(textX, y - 38f - labelLift, 154f, 18f),
-                    marker.City.Name.ToUpperInvariant(), titleStyle);
+                    PlaceNames.Get(marker.City.Name).ToUpperInvariant(), titleStyle);
                 var depth = marker.Projection.ElevationDegrees < -.1
                     ? $"{Math.Abs(marker.Projection.ElevationDegrees):0.0}° {AppText.Get(TextKey.Below)}"
                     : AppText.Get(TextKey.OnHorizon);
@@ -318,7 +323,7 @@ namespace TransparentEarth.UI
                 AppText.Get(TextKey.NearestGeographicObject), _eyebrow);
             GUI.color = Color.white;
             GUI.Label(new Rect(objectRect.x + 14, objectRect.y + 28, objectRect.width - 88, 22),
-                $"{nearest.Object.Name.ToUpperInvariant()} · {nearest.Object.Country}", _markerTitle);
+                $"{PlaceNames.Get(nearest.Object.Name).ToUpperInvariant()} · {nearest.Object.Country}", _markerTitle);
             var bearing = nearest.Projection.BearingDegrees;
             GUI.Label(new Rect(objectRect.x + 14, objectRect.y + 53, objectRect.width - 92, 18),
                 $"{AppText.Get(TextKey.Direction)}  {AppText.CardinalDirection(bearing)} · {bearing:000}°", _markerMeta);

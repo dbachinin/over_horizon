@@ -1,6 +1,6 @@
-# Transparent Earth — Unity client
+# OverHorizon — Unity client
 
-Unity 6.3 LTS (`6000.3.22f1`) Android client for the Transparent Earth spatial viewer.
+Unity 6.3 LTS (`6000.3.22f1`) Android client for the OverHorizon spatial viewer.
 
 ## Open and run
 

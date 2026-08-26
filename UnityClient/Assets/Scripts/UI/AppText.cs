@@ -17,7 +17,7 @@ namespace TransparentEarth.I18n
     {
         private static readonly IReadOnlyDictionary<TextKey, string> English = new Dictionary<TextKey, string>
         {
-            [TextKey.LookThroughHorizon] = "Look through the horizon",
+            [TextKey.LookThroughHorizon] = "View through Earth",
             [TextKey.OtherSideOfEarth] = "The other side of Earth",
             [TextKey.PhysicalHorizon] = "PHYSICAL HORIZON",
             [TextKey.Below] = "BELOW",
@@ -37,7 +37,7 @@ namespace TransparentEarth.I18n
             [TextKey.NearestGeographicObject] = "NEAREST GEOGRAPHIC OBJECT",
             [TextKey.Direction] = "DIRECTION",
             [TextKey.SurfaceDistance] = "SURFACE DISTANCE",
-            [TextKey.TransparentEarth] = "Transparent Earth",
+            [TextKey.TransparentEarth] = "Display controls",
             [TextKey.BeyondHorizon] = "Objects beyond the horizon",
             [TextKey.On] = "ON",
             [TextKey.Off] = "OFF",
@@ -59,7 +59,7 @@ namespace TransparentEarth.I18n
 
         private static readonly IReadOnlyDictionary<TextKey, string> Russian = new Dictionary<TextKey, string>
         {
-            [TextKey.LookThroughHorizon] = "Смотрите сквозь горизонт",
+            [TextKey.LookThroughHorizon] = "Вид сквозь Землю",
             [TextKey.OtherSideOfEarth] = "Другая сторона Земли",
             [TextKey.PhysicalHorizon] = "ФИЗИЧЕСКИЙ ГОРИЗОНТ",
             [TextKey.Below] = "НИЖЕ",
@@ -79,7 +79,7 @@ namespace TransparentEarth.I18n
             [TextKey.NearestGeographicObject] = "БЛИЖАЙШИЙ ГЕОГРАФИЧЕСКИЙ ОБЪЕКТ",
             [TextKey.Direction] = "НАПРАВЛЕНИЕ",
             [TextKey.SurfaceDistance] = "ПО ПОВЕРХНОСТИ",
-            [TextKey.TransparentEarth] = "Прозрачная Земля",
+            [TextKey.TransparentEarth] = "Управление отображением",
             [TextKey.BeyondHorizon] = "Объекты за линией горизонта",
             [TextKey.On] = "ВКЛ",
             [TextKey.Off] = "ВЫКЛ",
@@ -101,7 +101,7 @@ namespace TransparentEarth.I18n
 
         private static readonly IReadOnlyDictionary<TextKey, string> Serbian = new Dictionary<TextKey, string>
         {
-            [TextKey.LookThroughHorizon] = "Pogled kroz horizont",
+            [TextKey.LookThroughHorizon] = "Pogled kroz Zemlju",
             [TextKey.OtherSideOfEarth] = "Druga strana Zemlje",
             [TextKey.PhysicalHorizon] = "FIZIČKI HORIZONT",
             [TextKey.Below] = "ISPOD",
@@ -121,7 +121,7 @@ namespace TransparentEarth.I18n
             [TextKey.NearestGeographicObject] = "NAJBLIŽI GEOGRAFSKI OBJEKAT",
             [TextKey.Direction] = "PRAVAC",
             [TextKey.SurfaceDistance] = "PO POVRŠINI",
-            [TextKey.TransparentEarth] = "Prozirna Zemlja",
+            [TextKey.TransparentEarth] = "Upravljanje prikazom",
             [TextKey.BeyondHorizon] = "Objekti iza horizonta",
             [TextKey.On] = "UKLJ",
             [TextKey.Off] = "ISKLJ",

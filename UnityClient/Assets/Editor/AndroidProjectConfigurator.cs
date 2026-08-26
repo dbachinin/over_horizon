@@ -17,11 +17,11 @@ namespace TransparentEarth.Editor
 
         static AndroidProjectConfigurator() => EditorApplication.delayCall += EnsureProject;
 
-        [MenuItem("Transparent Earth/Prepare Android Project")]
+        [MenuItem("OverHorizon/Prepare Android Project")]
         public static void EnsureProject()
         {
-            PlayerSettings.productName = "Transparent Earth";
-            PlayerSettings.companyName = "Transparent Earth";
+            PlayerSettings.productName = "OverHorizon";
+            PlayerSettings.companyName = "OverHorizon";
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.transparentearth.unity");
             PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel26;
             PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevelAuto;
@@ -76,7 +76,7 @@ namespace TransparentEarth.Editor
             var options = new BuildPlayerOptions
             {
                 scenes = new[] { ScenePath },
-                locationPathName = "Builds/Android/TransparentEarth.apk",
+                locationPathName = "Builds/Android/OverHorizon.apk",
                 target = BuildTarget.Android,
                 options = BuildOptions.Development
             };

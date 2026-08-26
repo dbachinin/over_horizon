@@ -61,12 +61,12 @@ namespace TransparentEarth.Rendering
             _horizonRoot.SetParent(transform, false);
             var mesh = CreateSphereMesh(longitudeSegments: 128, latitudeSegments: 80);
 
-            var earth = CreateMeshObject("Transparent Earth", mesh, _globeRoot);
+            var earth = CreateMeshObject("Earth Surface", mesh, _globeRoot);
             earth.transform.localPosition = Vector3.zero;
             earth.transform.localScale = Vector3.one * Radius;
             _earthMaterial = new Material(Shader.Find("TransparentEarth/AtmosphericGrid"))
             {
-                name = "Transparent Earth Runtime Material"
+                name = "Earth Surface Runtime Material"
             };
             _earthMaterial.SetColor("_LandColor", new Color(.004f, .006f, .006f, .985f));
             _earthMaterial.SetColor("_OceanColor", new Color(.005f, .105f, .090f, .78f));
