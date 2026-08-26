@@ -39,7 +39,9 @@ namespace TransparentEarth.Geo
     public static class GeoMath
     {
         public const double EarthRadiusKm = 6371.0088;
+        public const double EarthCircumferenceKm = 2.0 * Math.PI * EarthRadiusKm;
         public const double HalfCircumferenceKm = Math.PI * EarthRadiusKm;
+        public const double OneThirdCircumferenceKm = EarthCircumferenceKm / 3.0;
 
         public static GeoPoint Antipode(GeoPoint point) =>
             new GeoPoint(-point.Latitude, NormalizeLongitude(point.Longitude + 180.0), point.AltitudeMeters);
@@ -81,6 +83,26 @@ namespace TransparentEarth.Geo
                 (float)(Math.Cos(targetLat) * Math.Sin(targetLon)),
                 (float)Math.Sin(targetLat));
             return EcefDeltaToEnu(targetUnit, observer).normalized;
+        }
+
+        public static Matrix4x4 EnuToEcefMatrix(GeoPoint observer)
+        {
+            var lat = DegreesToRadians(observer.Latitude);
+            var lon = DegreesToRadians(observer.Longitude);
+            var east = new Vector3((float)-Math.Sin(lon), (float)Math.Cos(lon), 0f);
+            var up = new Vector3(
+                (float)(Math.Cos(lat) * Math.Cos(lon)),
+                (float)(Math.Cos(lat) * Math.Sin(lon)),
+                (float)Math.Sin(lat));
+            var north = new Vector3(
+                (float)(-Math.Sin(lat) * Math.Cos(lon)),
+                (float)(-Math.Sin(lat) * Math.Sin(lon)),
+                (float)Math.Cos(lat));
+            var matrix = Matrix4x4.identity;
+            matrix.SetColumn(0, new Vector4(east.x, east.y, east.z, 0f));
+            matrix.SetColumn(1, new Vector4(up.x, up.y, up.z, 0f));
+            matrix.SetColumn(2, new Vector4(north.x, north.y, north.z, 0f));
+            return matrix;
         }
 
         private static Vector3 ToEcef(GeoPoint point)

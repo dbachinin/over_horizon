@@ -48,6 +48,7 @@ namespace TransparentEarth.Editor
             var required = new[]
             {
                 Shader.Find("TransparentEarth/AtmosphericGrid"),
+                Shader.Find("TransparentEarth/GoldenInterior"),
                 Shader.Find("TransparentEarth/HorizonHaze"),
                 Shader.Find("TransparentEarth/CameraBackground"),
                 Shader.Find("Sprites/Default")

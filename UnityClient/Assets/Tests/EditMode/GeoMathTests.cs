@@ -56,6 +56,24 @@ namespace TransparentEarth.Tests
             Assert.That(normal.y, Is.EqualTo(-1f).Within(1e-5f));
         }
 
+        [Test]
+        public void EnuUpMapsBackToObserverEcefNormal()
+        {
+            var observer = new GeoPoint(44.7866, 20.4489);
+            var ecef = GeoMath.EnuToEcefMatrix(observer).MultiplyVector(Vector3.up).normalized;
+            var expectedLatitude = Mathf.Asin(ecef.z) * Mathf.Rad2Deg;
+            var expectedLongitude = Mathf.Atan2(ecef.y, ecef.x) * Mathf.Rad2Deg;
+            Assert.That(expectedLatitude, Is.EqualTo(observer.Latitude).Within(1e-4));
+            Assert.That(expectedLongitude, Is.EqualTo(observer.Longitude).Within(1e-4));
+        }
+
+        [Test]
+        public void EnuNorthAtEquatorMapsTowardNorthPole()
+        {
+            var ecef = GeoMath.EnuToEcefMatrix(new GeoPoint(0, 0)).MultiplyVector(Vector3.forward);
+            Assert.That(ecef.z, Is.EqualTo(1f).Within(1e-5f));
+        }
+
         [TestCase(90, 0)]
         [TestCase(-90, 0)]
         [TestCase(0, 180)]

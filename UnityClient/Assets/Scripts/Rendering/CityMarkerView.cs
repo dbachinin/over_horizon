@@ -6,19 +6,33 @@ namespace TransparentEarth.Rendering
 {
     public sealed class CityMarkerView
     {
+        private const double NearbyLeaderRadiusKm = 30d;
+
         public readonly City City;
-        public readonly GeoProjection Projection;
+        public GeoProjection Projection;
         public readonly Transform Anchor;
         public readonly Transform Flag;
-        public readonly Color Accent;
+        public readonly bool IsNearbySettlement;
+        private float _reveal;
 
-        public CityMarkerView(City city, GeoProjection projection, Transform anchor, Transform flag = null)
+        public Color Accent => TransparentEarthStyle.BlueprintGold;
+        public bool IsNearby => IsNearbySettlement || Projection.DistanceKm <= NearbyLeaderRadiusKm;
+        public bool HasLeaderLine => Projection.DistanceKm <= GeoMath.OneThirdCircumferenceKm;
+
+        public CityMarkerView(City city, GeoProjection projection, Transform anchor, bool isNearbySettlement,
+            Transform flag = null)
         {
             City = city;
             Projection = projection;
             Anchor = anchor;
             Flag = flag;
-            Accent = projection.ElevationDegrees < -35 ? TransparentEarthStyle.Signal : TransparentEarthStyle.Mint;
+            IsNearbySettlement = isNearbySettlement;
+        }
+
+        public float AccumulateReveal(float waveReveal)
+        {
+            _reveal = Mathf.Max(_reveal, Mathf.Clamp01(waveReveal));
+            return _reveal;
         }
     }
 }

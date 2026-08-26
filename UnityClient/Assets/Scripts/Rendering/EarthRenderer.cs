@@ -12,7 +12,9 @@ namespace TransparentEarth.Rendering
         private static readonly Vector3 EarthCenter = new(0, -Radius - EyeHeight, 0);
         private Material _hazeMaterial;
         private Material _earthMaterial;
+        private Material _interiorMaterial;
         private Camera _observerCamera;
+        private LocationProvider _location;
         private Transform _globeRoot;
         private Transform _horizonRoot;
         private GeoBoundaryLayer _boundaries;
@@ -26,6 +28,7 @@ namespace TransparentEarth.Rendering
         public bool GridVisible { get; private set; } = true;
         public bool ContinentsVisible { get; private set; } = true;
         public bool CountriesVisible { get; private set; }
+        public bool ReferencesVisible { get; private set; } = true;
         public Quaternion GeographicRotation => _globeRoot == null ? Quaternion.identity : _globeRoot.localRotation;
         public bool IsManuallyOriented => Quaternion.Angle(_globeRoot == null ? Quaternion.identity : _globeRoot.localRotation,
             Quaternion.identity) > .2f || Mathf.Abs(_manualLookPitch) > .2f;
@@ -46,6 +49,7 @@ namespace TransparentEarth.Rendering
         public void Build(Camera observerCamera, LocationProvider location)
         {
             _observerCamera = observerCamera;
+            _location = location;
             _globeRoot = new GameObject("Rotatable Globe").transform;
             _globeRoot.SetParent(transform, false);
             _globeRoot.localPosition = EarthCenter;
@@ -60,20 +64,36 @@ namespace TransparentEarth.Rendering
             {
                 name = "Transparent Earth Runtime Material"
             };
-            _earthMaterial.SetColor("_BaseColor", new Color(.016f, .044f, .033f, 1f));
-            _earthMaterial.SetColor("_GridColor", new Color(.62f, .96f, .82f, .72f));
+            _earthMaterial.SetColor("_LandColor", new Color(.004f, .006f, .006f, .985f));
+            _earthMaterial.SetColor("_OceanColor", new Color(.005f, .105f, .090f, .78f));
+            _earthMaterial.SetColor("_DeepColor", new Color(.001f, .032f, .034f, .82f));
+            _earthMaterial.SetColor("_CausticColor", new Color(.34f, .90f, .70f, 1f));
+            _earthMaterial.SetColor("_GridColor", new Color(.92f, .77f, .42f, .50f));
+            _earthMaterial.SetColor("_PulseColor", new Color(1f, .76f, .28f, 1f));
+            _earthMaterial.SetColor("_HazeColor", new Color(.86f, .72f, .46f, 1f));
             earth.GetComponent<MeshRenderer>().sharedMaterial = _earthMaterial;
+
+            var interior = CreateMeshObject("Golden Earth Interior", mesh, _globeRoot);
+            interior.transform.localPosition = Vector3.zero;
+            interior.transform.localScale = Vector3.one * (Radius - .28f);
+            _interiorMaterial = new Material(Shader.Find("TransparentEarth/GoldenInterior"))
+            {
+                name = "Golden Interior Runtime Material"
+            };
+            _interiorMaterial.SetColor("_InteriorColor", new Color(.92f, .65f, .20f, .24f));
+            _interiorMaterial.SetColor("_PulseColor", new Color(1f, .86f, .48f, 1f));
+            interior.GetComponent<MeshRenderer>().sharedMaterial = _interiorMaterial;
 
             var haze = CreateMeshObject("Flat Horizon Haze", CreateHorizonBandMesh(), _horizonRoot);
             _hazeMaterial = new Material(Shader.Find("TransparentEarth/HorizonHaze"))
             {
                 name = "Horizon Haze Runtime Material"
             };
-            _hazeMaterial.SetColor("_HazeColor", new Color(.56f, 1f, .84f, .46f));
+            _hazeMaterial.SetColor("_HazeColor", new Color(.91f, .78f, .54f, .72f));
             haze.GetComponent<MeshRenderer>().sharedMaterial = _hazeMaterial;
 
             _boundaries = gameObject.AddComponent<GeoBoundaryLayer>();
-            _boundaries.Initialize(_globeRoot, location, Radius + .055f);
+            _boundaries.Initialize(_globeRoot, location, Radius + .055f, _earthMaterial, _interiorMaterial);
 
             BuildHorizon();
             BuildReticle();
@@ -99,11 +119,44 @@ namespace TransparentEarth.Rendering
             _boundaries?.SetCountriesVisible(visible);
         }
 
+        public void SetReferencesVisible(bool visible)
+        {
+            ReferencesVisible = visible;
+            if (_earthMaterial != null) _earthMaterial.SetFloat("_ReferenceOpacity", visible ? 1f : 0f);
+        }
+
         public void RestoreRealOrientation()
         {
             _returningToReal = true;
             _dragging = false;
         }
+
+        public float ScanPulseAt(float centralAngleDegrees)
+        {
+            var phase = CurrentScanPhase;
+            if (phase > 1f) return 0f;
+            var distance = Mathf.Clamp01(centralAngleDegrees / 180f);
+            var width = Mathf.Lerp(.055f, .009f, distance);
+            return 1f - Mathf.SmoothStep(width * .16f, width, Mathf.Abs(distance - phase));
+        }
+
+        public float MarkerRevealAt(float centralAngleDegrees)
+        {
+            var phase = CurrentScanPhase;
+            if (phase > 1f) return 1f;
+            var distance = Mathf.Clamp01(centralAngleDegrees / 180f);
+            var drawWidth = Mathf.Lerp(.045f, .012f, distance);
+            return Mathf.SmoothStep(distance, distance + drawWidth, phase);
+        }
+
+        public Vector3 GeographicSurfacePoint(GeoPoint point)
+        {
+            if (_globeRoot == null || _location == null) return transform.position;
+            var normal = GeoMath.SurfaceNormalEnu(_location.Current, point);
+            return _globeRoot.TransformPoint(normal * (Radius + .085f));
+        }
+
+        private static float CurrentScanPhase => Mathf.Repeat(Time.unscaledTime * .30f, 1.18f);
 
         public Transform CreateFlag(GeoProjection projection, string label, bool isAntipode)
         {
@@ -173,6 +226,8 @@ namespace TransparentEarth.Rendering
             var targetHaze = 1f - Mathf.SmoothStep(0f, 1f, depthLook);
             _smoothedHaze = Mathf.Lerp(_smoothedHaze, targetHaze, 1f - Mathf.Exp(-5f * Time.deltaTime));
             _hazeMaterial.SetFloat("_HazeAmount", _smoothedHaze);
+            _earthMaterial.SetFloat("_HazeAmount", _smoothedHaze);
+            _interiorMaterial.SetFloat("_HazeAmount", _smoothedHaze);
         }
 
         private void LateUpdate()

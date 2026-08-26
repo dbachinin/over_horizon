@@ -12,6 +12,9 @@ namespace TransparentEarth.CameraFeed
         private Transform _screen;
         private Material _material;
         private WebCamTexture _feed;
+        private int _lastRotation = -1;
+        private int _lastWidth;
+        private int _lastHeight;
 
         public bool IsRunning => _feed != null && _feed.isPlaying;
 
@@ -64,10 +67,31 @@ namespace TransparentEarth.CameraFeed
         private void Update()
         {
             if (_feed == null || !_feed.didUpdateThisFrame) return;
-            _screen.localEulerAngles = new Vector3(0, 0, -_feed.videoRotationAngle);
-            _material.mainTextureScale = new Vector2(1, _feed.videoVerticallyMirrored ? -1 : 1);
-            _material.mainTextureOffset = new Vector2(0, _feed.videoVerticallyMirrored ? 1 : 0);
+            if (_feed.width <= 16 || _feed.height <= 16) return;
+            if (_lastRotation != _feed.videoRotationAngle || _lastWidth != _feed.width || _lastHeight != _feed.height)
+            {
+                _lastRotation = _feed.videoRotationAngle;
+                _lastWidth = _feed.width;
+                _lastHeight = _feed.height;
+                UpdateUvTransform();
+            }
+            _material.SetFloat("_MirrorY", _feed.videoVerticallyMirrored ? 1f : 0f);
             FitToCamera();
+        }
+
+        private void UpdateUvTransform()
+        {
+            var quarterTurns = Mathf.RoundToInt(_feed.videoRotationAngle / 90f) & 3;
+            var rotated = quarterTurns is 1 or 3;
+            var sourceAspect = rotated ? _feed.height / (float)_feed.width : _feed.width / (float)_feed.height;
+            var screenAspect = Mathf.Max(.01f, _camera.aspect);
+            var scale = Vector2.one;
+            if (sourceAspect > screenAspect) scale.x = screenAspect / sourceAspect;
+            else scale.y = sourceAspect / screenAspect;
+            _material.SetFloat("_QuarterTurns", quarterTurns);
+            var offset = (Vector2.one - scale) * .5f;
+            _material.SetVector("_UvScale", new Vector4(scale.x, scale.y, 0f, 0f));
+            _material.SetVector("_UvOffset", new Vector4(offset.x, offset.y, 0f, 0f));
         }
 
         private void FitToCamera()

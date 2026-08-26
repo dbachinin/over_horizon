@@ -35,9 +35,10 @@ Shader "TransparentEarth/HorizonHaze"
             fixed4 frag(v2f i) : SV_Target
             {
                 float distanceFromCenter = abs(i.uv.y - .5) * 2.0;
-                float softBand = pow(saturate(1.0 - distanceFromCenter), 2.4);
+                float softBand = pow(saturate(1.0 - distanceFromCenter), 1.45);
+                float denseCore = 1.0 - smoothstep(.0, .23, distanceFromCenter);
                 fixed4 color = _HazeColor;
-                color.a *= softBand * _HazeAmount;
+                color.a *= (softBand * .72 + denseCore * .48) * _HazeAmount;
                 return color;
             }
             ENDCG
