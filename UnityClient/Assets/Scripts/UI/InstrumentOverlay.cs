@@ -1,11 +1,15 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
+using TransparentEarth.Data;
 using TransparentEarth.Geo;
 using TransparentEarth.I18n;
 using TransparentEarth.Map;
 using TransparentEarth.Rendering;
 using TransparentEarth.Sensors;
 using UnityEngine;
+using UnityEngine.Networking;
 
 namespace TransparentEarth.UI
 {
@@ -34,10 +38,19 @@ namespace TransparentEarth.UI
         private GUIStyle _markerMeta;
         private GUIStyle _referenceLabel;
         private GUIStyle _buttonText;
+        private GUIStyle _searchField;
         private bool _transparentEarth = true;
         private bool _hasAntipodeObject;
         private GeoPoint _resolvedAntipode;
         private GeographicObjectDirection _nearestAntipodeObject;
+        private readonly List<PlaceSearchResult> _placeResults = new();
+        private readonly Dictionary<string, PlaceSearchResult[]> _placeSearchCache =
+            new(StringComparer.OrdinalIgnoreCase);
+        private string _placeQuery = string.Empty;
+        private string _placeSearchError = string.Empty;
+        private bool _placeSearchStarted;
+        private bool _placeSearching;
+        private float _lastPlaceSearchAt = -10f;
         private int _tab;
 
         public void Initialize(Camera sceneCamera, DevicePoseProvider pose, LocationProvider location,
@@ -81,8 +94,13 @@ namespace TransparentEarth.UI
             _earth.SetInteractionEnabled(_tab == 0);
 
             GUI.Label(new Rect(left + 20, top + 16, 260, 18), "OVERHORIZON", _eyebrow);
-            GUI.Label(new Rect(left + 20, top + 34, 330, 34),
-                _tab == 0 ? AppText.Get(TextKey.LookThroughHorizon) : AppText.Get(TextKey.OtherSideOfEarth), _title);
+            var title = _tab switch
+            {
+                0 => AppText.Get(TextKey.LookThroughHorizon),
+                1 => AppText.Get(TextKey.OtherSideOfEarth),
+                _ => AppText.Get(TextKey.PlaceSearchTitle)
+            };
+            GUI.Label(new Rect(left + 20, top + 34, 350, 34), title, _title);
             StatusPill(new Rect(left + width - 82, top + 20, 62, 28));
 
             if (_tab == 0)
@@ -93,7 +111,8 @@ namespace TransparentEarth.UI
                 DrawReferenceLegends(scale);
                 OrientationButton(left, top, width);
             }
-            else DrawAntipode(left, top, width, height);
+            else if (_tab == 1) DrawAntipode(left, top, width, height);
+            else DrawPlaces(left, top, width, height);
 
             BottomDeck(left, top, width, height);
         }
@@ -358,6 +377,194 @@ namespace TransparentEarth.UI
             GUI.matrix = matrix;
         }
 
+        private void DrawPlaces(float left, float top, float width, float height)
+        {
+            var searchPanel = new Rect(left + 18f, top + 92f, width - 36f, 88f);
+            GUI.color = Color.white;
+            GUI.DrawTexture(searchPanel, _panel);
+            GUI.color = TransparentEarthStyle.Mint;
+            GUI.Label(new Rect(searchPanel.x + 14f, searchPanel.y + 7f, searchPanel.width - 28f, 18f),
+                AppText.Get(TextKey.PlaceSearchHint), _eyebrow);
+
+            var inputRect = new Rect(searchPanel.x + 14f, searchPanel.y + 31f, searchPanel.width - 112f, 40f);
+            GUI.color = Color.white;
+            _placeQuery = GUI.TextField(inputRect, _placeQuery, 80, _searchField);
+            var searchRect = new Rect(searchPanel.xMax - 90f, searchPanel.y + 31f, 76f, 40f);
+            GUI.DrawTexture(searchRect, _placeSearching ? _layerOff : _layerOn);
+            GUI.Label(searchRect, _placeSearching ? "…" : AppText.Get(TextKey.Search), _buttonText);
+            if (!_placeSearching && Clicked(searchRect) && !string.IsNullOrWhiteSpace(_placeQuery))
+            {
+                GUIUtility.keyboardControl = 0;
+                StartCoroutine(SearchPlaces(_placeQuery.Trim()));
+            }
+
+            var contentTop = searchPanel.yMax + 12f;
+            GUI.color = TransparentEarthStyle.Mint;
+            GUI.Label(new Rect(left + 24f, contentTop, width - 48f, 20f),
+                _placeResults.Count > 0
+                    ? AppText.Get(TextKey.SearchResults)
+                    : $"{AppText.Get(TextKey.SavedPlaces)} · {_streamer.CustomPlaces.Count}", _eyebrow);
+            GUI.color = Color.white;
+
+            if (_placeResults.Count > 0)
+                DrawPlaceResults(left, contentTop + 25f, width, top + height - 66f);
+            else if (_placeSearchStarted && !_placeSearching)
+                GUI.Label(new Rect(left + 24f, contentTop + 36f, width - 48f, 24f),
+                    string.IsNullOrEmpty(_placeSearchError)
+                        ? AppText.Get(TextKey.NoPlacesFound)
+                        : AppText.Get(TextKey.SearchUnavailable), _small);
+            else
+                DrawSavedPlaces(left, contentTop + 25f, width, top + height - 66f);
+
+            GUI.color = Color.white;
+            GUI.Label(new Rect(left + 20f, top + height - 88f, width - 40f, 18f),
+                "© OpenStreetMap contributors · Nominatim", _small);
+        }
+
+        private void DrawPlaceResults(float left, float y, float width, float bottom)
+        {
+            const float rowHeight = 76f;
+            foreach (var result in _placeResults)
+            {
+                if (y + rowHeight > bottom) break;
+                var row = new Rect(left + 18f, y, width - 36f, rowHeight - 6f);
+                GUI.color = Color.white;
+                GUI.DrawTexture(row, _panel);
+                GUI.Label(new Rect(row.x + 14f, row.y + 8f, row.width - 106f, 20f),
+                    result.Name.ToUpperInvariant(), _markerTitle);
+                GUI.Label(new Rect(row.x + 14f, row.y + 29f, row.width - 106f, 17f),
+                    Shorten(result.DisplayName, 48), _markerMeta);
+                GUI.Label(new Rect(row.x + 14f, row.y + 47f, row.width - 106f, 15f),
+                    $"{result.Latitude:0.0000}°, {result.Longitude:0.0000}°", _small);
+
+                var saved = _streamer.ContainsCustomPlace(result.Position);
+                var addRect = new Rect(row.xMax - 88f, row.y + 17f, 74f, 36f);
+                GUI.DrawTexture(addRect, saved ? _layerOff : _layerOn);
+                GUI.Label(addRect, saved ? AppText.Get(TextKey.Added) : AppText.Get(TextKey.AddPlace), _buttonText);
+                if (!saved && Clicked(addRect))
+                    _streamer.AddCustomPlace(new City(result.Name, result.Country, result.Latitude, result.Longitude,
+                        result.Importance));
+                y += rowHeight;
+            }
+        }
+
+        private void DrawSavedPlaces(float left, float y, float width, float bottom)
+        {
+            const float rowHeight = 54f;
+            foreach (var city in _streamer.CustomPlaces)
+            {
+                if (y + rowHeight > bottom) break;
+                var row = new Rect(left + 18f, y, width - 36f, rowHeight - 6f);
+                GUI.color = Color.white;
+                GUI.DrawTexture(row, _panel);
+                GUI.Label(new Rect(row.x + 14f, row.y + 6f, row.width - 28f, 20f),
+                    PlaceNames.Get(city.Name).ToUpperInvariant(), _markerTitle);
+                GUI.Label(new Rect(row.x + 14f, row.y + 26f, row.width - 28f, 16f),
+                    $"{city.Country} · {city.Position.Latitude:0.0000}°, {city.Position.Longitude:0.0000}°", _markerMeta);
+                y += rowHeight;
+            }
+        }
+
+        private IEnumerator SearchPlaces(string query)
+        {
+            _placeSearching = true;
+            _placeSearchStarted = true;
+            _placeSearchError = string.Empty;
+            _placeResults.Clear();
+            var language = SearchLanguage();
+            var cacheKey = language + "|" + query;
+            if (_placeSearchCache.TryGetValue(cacheKey, out var cached))
+            {
+                _placeResults.AddRange(cached);
+                _placeSearching = false;
+                yield break;
+            }
+
+            var delay = 1.05f - (Time.realtimeSinceStartup - _lastPlaceSearchAt);
+            if (delay > 0f) yield return new WaitForSecondsRealtime(delay);
+            _lastPlaceSearchAt = Time.realtimeSinceStartup;
+            var endpoint = PlayerPrefs.GetString("OverHorizon.NominatimEndpoint",
+                "https://nominatim.openstreetmap.org/search");
+            var url = endpoint + "?format=jsonv2&addressdetails=1&limit=8&accept-language=" + language +
+                      "&q=" + UnityWebRequest.EscapeURL(query);
+            using var request = UnityWebRequest.Get(url);
+            request.timeout = 18;
+            request.SetRequestHeader("User-Agent", "OverHorizon/1.0 (Android; com.transparentearth.unity; place-search)");
+            yield return request.SendWebRequest();
+            if (request.result != UnityWebRequest.Result.Success)
+            {
+                _placeSearchError = request.error;
+                _placeSearching = false;
+                yield break;
+            }
+
+            try
+            {
+                var envelope = JsonUtility.FromJson<NominatimEnvelope>("{\"items\":" +
+                    request.downloadHandler.text + "}");
+                if (envelope?.items != null)
+                {
+                    foreach (var item in envelope.items)
+                    {
+                        if (!IsSettlement(item) || !double.TryParse(item.lat, NumberStyles.Float,
+                                CultureInfo.InvariantCulture, out var latitude) ||
+                            !double.TryParse(item.lon, NumberStyles.Float, CultureInfo.InvariantCulture,
+                                out var longitude)) continue;
+                        var name = string.IsNullOrWhiteSpace(item.name)
+                            ? FirstAddressPart(item.display_name)
+                            : item.name.Trim();
+                        if (string.IsNullOrWhiteSpace(name)) continue;
+                        var country = item.address?.country_code?.ToUpperInvariant() ?? string.Empty;
+                        var result = new PlaceSearchResult(name, country, item.display_name ?? name,
+                            latitude, longitude, ImportanceFor(item.type));
+                        if (_placeResults.Exists(existing => GeoMath.DistanceKm(existing.Position, result.Position) < 1d))
+                            continue;
+                        _placeResults.Add(result);
+                    }
+                }
+                _placeSearchCache[cacheKey] = _placeResults.ToArray();
+            }
+            catch (Exception exception)
+            {
+                _placeSearchError = exception.Message;
+            }
+            _placeSearching = false;
+        }
+
+        private static bool IsSettlement(NominatimItem item)
+        {
+            var type = string.IsNullOrWhiteSpace(item.addresstype) ? item.type : item.addresstype;
+            return type is "city" or "town" or "village" or "hamlet" or "municipality" or "locality";
+        }
+
+        private static int ImportanceFor(string type) => type switch
+        {
+            "city" => 84,
+            "town" => 74,
+            "village" => 64,
+            _ => 54
+        };
+
+        private static string SearchLanguage() => Application.systemLanguage switch
+        {
+            SystemLanguage.Russian => "ru",
+            SystemLanguage.SerboCroatian => "sr-Latn",
+            _ => "en"
+        };
+
+        private static string FirstAddressPart(string displayName)
+        {
+            if (string.IsNullOrWhiteSpace(displayName)) return string.Empty;
+            var comma = displayName.IndexOf(',');
+            return (comma < 0 ? displayName : displayName[..comma]).Trim();
+        }
+
+        private static string Shorten(string value, int maximum)
+        {
+            if (string.IsNullOrEmpty(value) || value.Length <= maximum) return value;
+            return value[..Mathf.Max(1, maximum - 1)].TrimEnd() + "…";
+        }
+
         private void BottomDeck(float left, float top, float width, float height)
         {
             var navHeight = 58f;
@@ -392,18 +599,17 @@ namespace TransparentEarth.UI
             }
 
             var navY = top + height - navHeight;
-            var itemWidth = width / 5f;
+            var itemWidth = width / 3f;
             var names = new[]
             {
-                AppText.Get(TextKey.Overview), AppText.Get(TextKey.Antipode), AppText.Get(TextKey.Map),
-                AppText.Get(TextKey.Places), AppText.Get(TextKey.Profile)
+                AppText.Get(TextKey.Overview), AppText.Get(TextKey.Antipode), AppText.Get(TextKey.Places)
             };
             for (var i = 0; i < names.Length; i++)
             {
                 GUI.color = i == _tab ? TransparentEarthStyle.Mint : TransparentEarthStyle.Muted;
                 var navRect = new Rect(left + i * itemWidth, navY, itemWidth, navHeight);
                 GUI.Label(navRect, names[i], _small);
-                if (Clicked(navRect) && i < 2) _tab = i;
+                if (Clicked(navRect)) _tab = i;
             }
             GUI.color = Color.white;
         }
@@ -455,6 +661,61 @@ namespace TransparentEarth.UI
             _markerMeta = TextStyle(font, 8, FontStyle.Normal, Color.white, TextAnchor.MiddleLeft);
             _referenceLabel = TextStyle(font, 8, FontStyle.Bold, Color.white, TextAnchor.MiddleCenter);
             _buttonText = TextStyle(font, 11, FontStyle.Bold, Color.white, TextAnchor.MiddleCenter);
+            _searchField = new GUIStyle(GUI.skin.textField)
+            {
+                font = font,
+                fontSize = 13,
+                alignment = TextAnchor.MiddleLeft,
+                padding = new RectOffset(12, 12, 6, 6)
+            };
+            _searchField.normal.textColor = Color.white;
+            _searchField.focused.textColor = Color.white;
+        }
+
+        private sealed class PlaceSearchResult
+        {
+            public readonly string Name;
+            public readonly string Country;
+            public readonly string DisplayName;
+            public readonly double Latitude;
+            public readonly double Longitude;
+            public readonly int Importance;
+            public GeoPoint Position => new(Latitude, Longitude);
+
+            public PlaceSearchResult(string name, string country, string displayName, double latitude,
+                double longitude, int importance)
+            {
+                Name = name;
+                Country = country;
+                DisplayName = displayName;
+                Latitude = latitude;
+                Longitude = longitude;
+                Importance = importance;
+            }
+        }
+
+        [Serializable]
+        private sealed class NominatimEnvelope
+        {
+            public NominatimItem[] items;
+        }
+
+        [Serializable]
+        private sealed class NominatimItem
+        {
+            public string lat;
+            public string lon;
+            public string name;
+            public string display_name;
+            public string type;
+            public string addresstype;
+            public NominatimAddress address;
+        }
+
+        [Serializable]
+        private sealed class NominatimAddress
+        {
+            public string country_code;
         }
 
         private static GUIStyle TextStyle(Font font, int size, FontStyle fontStyle, Color color, TextAnchor alignment) =>

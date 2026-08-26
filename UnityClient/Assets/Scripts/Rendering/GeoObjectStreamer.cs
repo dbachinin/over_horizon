@@ -19,10 +19,12 @@ namespace TransparentEarth.Rendering
         private const int MinimumGlobalObjects = 20;
         private const double NearbyRadiusKm = 30d;
         private const int MaximumNearbyObjects = 10;
+        private const string CustomPlacesKey = "OverHorizon.CustomPlaces.v1";
         private readonly Dictionary<ZoneKey, List<City>> _zones = new();
         private readonly List<CityMarkerView> _visible = new();
         private readonly Dictionary<string, CityMarkerView> _active = new();
         private readonly List<City> _nearbyPlaces = new();
+        private readonly List<City> _customPlaces = new();
         private Camera _camera;
         private EarthRenderer _earth;
         private LocationProvider _location;
@@ -38,6 +40,7 @@ namespace TransparentEarth.Rendering
         public int LoadedZoneCount { get; private set; }
         public int NearbyPlaceCount => _nearbyPlaces.Count;
         public bool IsNearbyLoading => _loadingNearby;
+        public IReadOnlyList<City> CustomPlaces => _customPlaces;
 
         public void Initialize(Transform root, Camera sceneCamera, EarthRenderer earth, LocationProvider location)
         {
@@ -46,6 +49,7 @@ namespace TransparentEarth.Rendering
             _location = location;
             _markerRoot = new GameObject("Streamed Geo Objects").transform;
             _markerRoot.SetParent(root, false);
+            LoadCustomPlaces();
             BuildZoneIndex();
             _observer = location.Current;
             Refresh(force: true);
@@ -64,12 +68,81 @@ namespace TransparentEarth.Rendering
 
         private void BuildZoneIndex()
         {
-            foreach (var city in CityCatalog.All)
+            _zones.Clear();
+            foreach (var city in CityCatalog.All) AddToZone(city);
+            foreach (var city in _customPlaces) AddToZone(city);
+        }
+
+        public bool AddCustomPlace(City city)
+        {
+            if (string.IsNullOrWhiteSpace(city.Name) || city.Position.Latitude is < -90d or > 90d ||
+                city.Position.Longitude is < -180d or > 180d) return false;
+            if (CityCatalog.All.Any(existing => AreSamePlace(existing, city)) ||
+                _customPlaces.Any(existing => AreSamePlace(existing, city))) return false;
+
+            _customPlaces.Add(city);
+            AddToZone(city);
+            SaveCustomPlaces();
+            Refresh(force: true);
+            return true;
+        }
+
+        public bool ContainsCustomPlace(GeoPoint position) =>
+            _customPlaces.Any(city => GeoMath.DistanceKm(city.Position, position) < 2d);
+
+        private void AddToZone(City city)
+        {
+            var key = ZoneKey.For(city.Position);
+            if (!_zones.TryGetValue(key, out var cities)) _zones[key] = cities = new List<City>();
+            cities.Add(city);
+        }
+
+        public static bool AreSamePlace(City left, City right) =>
+            (string.Equals(left.Name, right.Name, StringComparison.OrdinalIgnoreCase) &&
+             string.Equals(left.Country, right.Country, StringComparison.OrdinalIgnoreCase)) ||
+            GeoMath.DistanceKm(left.Position, right.Position) < 2d;
+
+        private void LoadCustomPlaces()
+        {
+            _customPlaces.Clear();
+            var json = PlayerPrefs.GetString(CustomPlacesKey, string.Empty);
+            if (string.IsNullOrWhiteSpace(json)) return;
+            try
             {
-                var key = ZoneKey.For(city.Position);
-                if (!_zones.TryGetValue(key, out var cities)) _zones[key] = cities = new List<City>();
-                cities.Add(city);
+                var saved = JsonUtility.FromJson<SavedPlaceCollection>(json);
+                if (saved?.items == null) return;
+                foreach (var item in saved.items)
+                {
+                    if (item == null || string.IsNullOrWhiteSpace(item.name) || item.latitude is < -90d or > 90d ||
+                        item.longitude is < -180d or > 180d) continue;
+                    var city = new City(item.name, item.country ?? string.Empty, item.latitude, item.longitude,
+                        Mathf.Clamp(item.importance, 45, 90));
+                    if (_customPlaces.Any(existing => AreSamePlace(existing, city)) ||
+                        CityCatalog.All.Any(existing => AreSamePlace(existing, city))) continue;
+                    _customPlaces.Add(city);
+                }
             }
+            catch (Exception exception)
+            {
+                Debug.LogWarning($"Could not restore saved places: {exception.Message}");
+            }
+        }
+
+        private void SaveCustomPlaces()
+        {
+            var saved = new SavedPlaceCollection
+            {
+                items = _customPlaces.Select(city => new SavedPlace
+                {
+                    name = city.Name,
+                    country = city.Country,
+                    latitude = city.Position.Latitude,
+                    longitude = city.Position.Longitude,
+                    importance = city.Importance
+                }).ToArray()
+            };
+            PlayerPrefs.SetString(CustomPlacesKey, JsonUtility.ToJson(saved));
+            PlayerPrefs.Save();
         }
 
         private void Refresh(bool force)
@@ -224,7 +297,26 @@ namespace TransparentEarth.Rendering
             _loadingNearby = false;
         }
 
-        private static string MarkerKey(City city) => city.Country + "|" + city.Name;
+        private static string MarkerKey(City city) =>
+            city.Country + "|" + city.Name + "|" +
+            city.Position.Latitude.ToString("0.#####", CultureInfo.InvariantCulture) + "|" +
+            city.Position.Longitude.ToString("0.#####", CultureInfo.InvariantCulture);
+
+        [Serializable]
+        private sealed class SavedPlaceCollection
+        {
+            public SavedPlace[] items;
+        }
+
+        [Serializable]
+        private sealed class SavedPlace
+        {
+            public string name;
+            public string country;
+            public double latitude;
+            public double longitude;
+            public int importance;
+        }
 
         [Serializable]
         private sealed class OverpassResponse

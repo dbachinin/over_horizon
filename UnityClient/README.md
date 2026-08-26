@@ -10,6 +10,10 @@ Unity 6.3 LTS (`6000.3.22f1`) Android client for the OverHorizon spatial viewer.
 4. Press Play. In Editor, orientation has a subtle demo drift; on Android it uses the gyroscope and compass.
 5. Use **File → Build Profiles → Android** to build an APK or AAB.
 
+The bottom navigation contains **Overview**, **Antipode**, and **Places**. The Places screen performs
+explicit user-triggered settlement searches through OpenStreetMap Nominatim. Added places are cached
+locally, restored on the next launch, and rendered through the same streamed marker system as built-in cities.
+
 No scene authoring is required: `TransparentEarthBootstrap` creates the camera, translucent Earth, horizon, targets, GPS provider, sensor provider, and instrument UI at runtime.
 
 ## Rendering and coordinates

@@ -10,7 +10,9 @@ namespace TransparentEarth.I18n
         LoadingMap, MapUnavailable, ExactAntipode, ThroughEarthDistance, FlagSaved,
         AntipodePoint, NearestGeographicObject, Direction, SurfaceDistance,
         TransparentEarth, BeyondHorizon, On, Off, GlobeLayers, Grid, Continents, Countries, References,
-        Overview, Antipode, Map, Places, Profile, Real, Live, Demo, Kilometers
+        Overview, Antipode, Map, Places, Profile, Real, Live, Demo, Kilometers,
+        PlaceSearchTitle, PlaceSearchHint, Search, SearchResults, AddPlace, Added,
+        NoPlacesFound, SearchUnavailable, SavedPlaces
     }
 
     public static class AppText
@@ -54,7 +56,16 @@ namespace TransparentEarth.I18n
             [TextKey.Real] = "REAL",
             [TextKey.Live] = "LIVE",
             [TextKey.Demo] = "DEMO",
-            [TextKey.Kilometers] = "KM"
+            [TextKey.Kilometers] = "KM",
+            [TextKey.PlaceSearchTitle] = "Find a city or settlement",
+            [TextKey.PlaceSearchHint] = "City, town or village",
+            [TextKey.Search] = "SEARCH",
+            [TextKey.SearchResults] = "SEARCH RESULTS",
+            [TextKey.AddPlace] = "ADD",
+            [TextKey.Added] = "ADDED",
+            [TextKey.NoPlacesFound] = "NOTHING FOUND",
+            [TextKey.SearchUnavailable] = "SEARCH UNAVAILABLE",
+            [TextKey.SavedPlaces] = "SAVED PLACES"
         };
 
         private static readonly IReadOnlyDictionary<TextKey, string> Russian = new Dictionary<TextKey, string>
@@ -96,7 +107,16 @@ namespace TransparentEarth.I18n
             [TextKey.Real] = "РЕАЛ",
             [TextKey.Live] = "LIVE",
             [TextKey.Demo] = "ДЕМО",
-            [TextKey.Kilometers] = "КМ"
+            [TextKey.Kilometers] = "КМ",
+            [TextKey.PlaceSearchTitle] = "Поиск города или поселения",
+            [TextKey.PlaceSearchHint] = "Город, посёлок или деревня",
+            [TextKey.Search] = "НАЙТИ",
+            [TextKey.SearchResults] = "РЕЗУЛЬТАТЫ ПОИСКА",
+            [TextKey.AddPlace] = "ДОБАВИТЬ",
+            [TextKey.Added] = "ДОБАВЛЕНО",
+            [TextKey.NoPlacesFound] = "НИЧЕГО НЕ НАЙДЕНО",
+            [TextKey.SearchUnavailable] = "ПОИСК НЕДОСТУПЕН",
+            [TextKey.SavedPlaces] = "СОХРАНЁННЫЕ МЕСТА"
         };
 
         private static readonly IReadOnlyDictionary<TextKey, string> Serbian = new Dictionary<TextKey, string>
@@ -138,7 +158,16 @@ namespace TransparentEarth.I18n
             [TextKey.Real] = "STVARNO",
             [TextKey.Live] = "UŽIVO",
             [TextKey.Demo] = "DEMO",
-            [TextKey.Kilometers] = "KM"
+            [TextKey.Kilometers] = "KM",
+            [TextKey.PlaceSearchTitle] = "Pretraga grada ili naselja",
+            [TextKey.PlaceSearchHint] = "Grad, varoš ili selo",
+            [TextKey.Search] = "TRAŽI",
+            [TextKey.SearchResults] = "REZULTATI PRETRAGE",
+            [TextKey.AddPlace] = "DODAJ",
+            [TextKey.Added] = "DODATO",
+            [TextKey.NoPlacesFound] = "NEMA REZULTATA",
+            [TextKey.SearchUnavailable] = "PRETRAGA NIJE DOSTUPNA",
+            [TextKey.SavedPlaces] = "SAČUVANA MESTA"
         };
 
         public static string Get(TextKey key) => GetForLanguage(key, Application.systemLanguage);
