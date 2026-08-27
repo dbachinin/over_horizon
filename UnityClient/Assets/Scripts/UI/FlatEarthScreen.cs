@@ -44,6 +44,7 @@ namespace TransparentEarth.UI
         private GUIStyle _rowTitle;
         private GUIStyle _button;
         private GUIStyle _backLink;
+        private GUIStyle _creed;
 
         private bool _open;
         private bool _cartographyRequested;
@@ -137,8 +138,13 @@ namespace TransparentEarth.UI
 
             RefreshEntries();
 
-            var discSize = Mathf.Min(width - 36f, height * .46f);
-            var discRect = new Rect(left + (width - discSize) * .5f, top + 74f, discSize, discSize);
+            GUI.color = MedievalIconography.Blood;
+            GUI.Label(new Rect(left + 22f, top + 72f, width - 44f, 32f),
+                AppText.Get(TextKey.SecretInitiate), _creed);
+            GUI.color = Color.white;
+
+            var discSize = Mathf.Min(width - 36f, height * .43f);
+            var discRect = new Rect(left + (width - discSize) * .5f, top + 108f, discSize, discSize);
             DrawDisc(discRect);
 
             var stripRect = new Rect(left + 14f, discRect.yMax + 10f, width - 28f, 96f);
@@ -430,6 +436,8 @@ namespace TransparentEarth.UI
             _rowTitle = Style(font, 12, FontStyle.Bold, MedievalIconography.Ink, TextAnchor.MiddleLeft);
             _button = Style(font, 13, FontStyle.Bold, new Color(.16f, .10f, .05f), TextAnchor.MiddleCenter);
             _backLink = Style(font, 10, FontStyle.Bold, MedievalIconography.Blood, TextAnchor.MiddleLeft);
+            _creed = Style(font, 11, FontStyle.BoldAndItalic, MedievalIconography.Blood, TextAnchor.MiddleCenter);
+            _creed.wordWrap = true;
         }
 
         private static GUIStyle Style(Font font, int size, FontStyle fontStyle, Color color, TextAnchor anchor) =>

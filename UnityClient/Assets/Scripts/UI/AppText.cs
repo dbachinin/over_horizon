@@ -15,7 +15,7 @@ namespace TransparentEarth.I18n
         NoPlacesFound, SearchUnavailable, SavedPlaces,
         FlatEarthMode, FlatEarthTitle, FlatEarthTagline, Unlock, RestorePurchase,
         PurchasePending, PurchaseFailed, BackToGlobe, Azimuth, IceWall, NorthPoleHub,
-        OneHorizonLine, WhereToLook
+        OneHorizonLine, WhereToLook, SecretInitiate
     }
 
     public static class AppText
@@ -83,7 +83,9 @@ namespace TransparentEarth.I18n
             [TextKey.IceWall] = "ICE WALL · SOUTH POLE",
             [TextKey.NorthPoleHub] = "NORTH POLE",
             [TextKey.OneHorizonLine] = "EVERY CITY ON ONE LINE",
-            [TextKey.WhereToLook] = "TAP A CITY TO TAKE ITS BEARING"
+            [TextKey.WhereToLook] = "TAP A CITY TO TAKE ITS BEARING",
+            [TextKey.SecretInitiate] =
+                "You now hold the great secret the scientists keep hidden from the world."
         };
 
         private static readonly IReadOnlyDictionary<TextKey, string> Russian = new Dictionary<TextKey, string>
@@ -149,7 +151,9 @@ namespace TransparentEarth.I18n
             [TextKey.IceWall] = "ЛЕДЯНАЯ СТЕНА · ЮЖНЫЙ ПОЛЮС",
             [TextKey.NorthPoleHub] = "СЕВЕРНЫЙ ПОЛЮС",
             [TextKey.OneHorizonLine] = "ВСЕ ГОРОДА НА ОДНОЙ ЛИНИИ",
-            [TextKey.WhereToLook] = "КОСНИТЕСЬ ГОРОДА, ЧТОБЫ ВЗЯТЬ АЗИМУТ"
+            [TextKey.WhereToLook] = "КОСНИТЕСЬ ГОРОДА, ЧТОБЫ ВЗЯТЬ АЗИМУТ",
+            [TextKey.SecretInitiate] =
+                "Отныне вы — обладатель великой тайны, которую учёные скрывают от мира."
         };
 
         private static readonly IReadOnlyDictionary<TextKey, string> Serbian = new Dictionary<TextKey, string>
@@ -215,7 +219,9 @@ namespace TransparentEarth.I18n
             [TextKey.IceWall] = "LEDENI ZID · JUŽNI POL",
             [TextKey.NorthPoleHub] = "SEVERNI POL",
             [TextKey.OneHorizonLine] = "SVI GRADOVI NA JEDNOJ LINIJI",
-            [TextKey.WhereToLook] = "DODIRNITE GRAD ZA AZIMUT"
+            [TextKey.WhereToLook] = "DODIRNITE GRAD ZA AZIMUT",
+            [TextKey.SecretInitiate] =
+                "Od sada ste čuvar velike tajne koju naučnici kriju od sveta."
         };
 
         public static string Get(TextKey key) => GetForLanguage(key, Application.systemLanguage);
