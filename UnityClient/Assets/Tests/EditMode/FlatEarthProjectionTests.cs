@@ -38,10 +38,11 @@ namespace TransparentEarth.Tests
         }
 
         [Test]
-        public void EastLongitudePutsThePointToTheRight()
+        public void EastLongitudePutsThePointToTheLeft()
         {
+            // The flat map is drawn as if seen from above the North Pole: east runs counter-clockwise.
             var disc = FlatEarthProjection.DiscPoint(new GeoPoint(0d, 90d));
-            Assert.That(disc.x, Is.GreaterThan(0f));
+            Assert.That(disc.x, Is.LessThan(0f));
             Assert.That(Mathf.Abs(disc.y), Is.LessThan(1e-4f));
         }
 

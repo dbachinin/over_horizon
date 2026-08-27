@@ -58,8 +58,9 @@ namespace TransparentEarth.Geo
         {
             var radius = RadiusNormalized(point.Latitude);
             var angle = MapAngleDegrees(point.Longitude) * Math.PI / 180.0;
-            // Clockwise from the top so 0° longitude points up and 90°E points right.
-            return new Vector2((float)(radius * Math.Sin(angle)), (float)(radius * Math.Cos(angle)));
+            // Viewed from above the North Pole: 0° longitude points up and east runs
+            // counter-clockwise, so 90°E lands on the left and the Americas sit on the right.
+            return new Vector2((float)(-radius * Math.Sin(angle)), (float)(radius * Math.Cos(angle)));
         }
 
         /// Deterministic, name-seeded relief in [-ReliefLimitDegrees, ReliefLimitDegrees].

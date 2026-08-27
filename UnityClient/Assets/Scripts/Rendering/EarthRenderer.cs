@@ -25,6 +25,9 @@ namespace TransparentEarth.Rendering
         private bool _returningToReal;
         private bool _interactionEnabled = true;
         private float _manualLookPitch;
+        private int _savedCullingMask;
+        private CameraClearFlags _savedClearFlags;
+        private bool _worldHidden;
 
         public bool GridVisible { get; private set; } = true;
         public bool ContinentsVisible { get; private set; } = true;
@@ -104,6 +107,27 @@ namespace TransparentEarth.Rendering
         }
 
         public void SetInteractionEnabled(bool enabled) => _interactionEnabled = enabled;
+
+        /// Stops the observer camera from drawing the AR feed and the 3D scene (flags, horizon,
+        /// reticle) so a full-screen overlay such as the flat-earth map has nothing bleeding through.
+        public void SetWorldRenderingEnabled(bool enabled)
+        {
+            if (_observerCamera == null || enabled == !_worldHidden) return;
+            if (enabled)
+            {
+                _observerCamera.cullingMask = _savedCullingMask;
+                _observerCamera.clearFlags = _savedClearFlags;
+                _worldHidden = false;
+            }
+            else
+            {
+                _savedCullingMask = _observerCamera.cullingMask;
+                _savedClearFlags = _observerCamera.clearFlags;
+                _observerCamera.cullingMask = 0;
+                _observerCamera.clearFlags = CameraClearFlags.SolidColor;
+                _worldHidden = true;
+            }
+        }
 
         public void SetGridVisible(bool visible)
         {

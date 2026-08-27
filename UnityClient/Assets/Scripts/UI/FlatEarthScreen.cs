@@ -45,12 +45,18 @@ namespace TransparentEarth.UI
         private GUIStyle _button;
         private GUIStyle _backLink;
         private GUIStyle _creed;
+        private GUIStyle _search;
 
         private bool _open;
         private bool _cartographyRequested;
         private string _selectedKey;
+        private string _query = string.Empty;
         private Vector2 _scroll;
+        private bool _dragging;
+        private float _lastDragY;
+        private float _dragTravel;
         private readonly List<Entry> _entries = new();
+        private readonly List<Entry> _filtered = new();
         private GeoPoint _entriesFor;
         private int _entriesCustomCount = -1;
         private bool _entriesReady;
@@ -76,6 +82,7 @@ namespace TransparentEarth.UI
         {
             _open = true;
             _earth?.SetInteractionEnabled(false);
+            _earth?.SetWorldRenderingEnabled(false);
             if (!_cartographyRequested)
             {
                 _cartographyRequested = true;
@@ -87,6 +94,7 @@ namespace TransparentEarth.UI
         {
             _open = false;
             _earth?.SetInteractionEnabled(true);
+            _earth?.SetWorldRenderingEnabled(true);
         }
 
         private void Awake()
@@ -120,13 +128,13 @@ namespace TransparentEarth.UI
             var top = (Screen.height - safe.yMax) / scale;
 
             GUI.color = Color.white;
-            TileParchment(new Rect(left, top, width, height));
+            TileParchment(new Rect(0f, 0f, Screen.width / scale, Screen.height / scale));
 
-            GUI.DrawTexture(new Rect(left + 8, top + 6, 62, 62), _sun, ScaleMode.ScaleToFit);
-            GUI.DrawTexture(new Rect(left + width - 70, top + 6, 62, 62), _moon, ScaleMode.ScaleToFit);
-            GUI.Label(new Rect(left + 76, top + 12, width - 152, 16),
+            GUI.DrawTexture(new Rect(left + 6, top + 2, 44, 44), _sun, ScaleMode.ScaleToFit);
+            GUI.DrawTexture(new Rect(left + width - 50, top + 2, 44, 44), _moon, ScaleMode.ScaleToFit);
+            GUI.Label(new Rect(left + 54, top + 3, width - 108, 13),
                 AppText.Get(TextKey.FlatEarthMode), _eyebrow);
-            GUI.Label(new Rect(left + 76, top + 28, width - 152, 30),
+            GUI.Label(new Rect(left + 54, top + 15, width - 108, 22),
                 AppText.Get(TextKey.FlatEarthTitle), _title);
 
             if (!FlatEarthEntitlement.IsUnlocked)
@@ -137,22 +145,29 @@ namespace TransparentEarth.UI
             }
 
             RefreshEntries();
+            ApplyFilter();
 
             GUI.color = MedievalIconography.Blood;
-            GUI.Label(new Rect(left + 22f, top + 72f, width - 44f, 32f),
+            GUI.Label(new Rect(left + 96f, top + 40f, width - 108f, 30f),
                 AppText.Get(TextKey.SecretInitiate), _creed);
             GUI.color = Color.white;
 
-            var discSize = Mathf.Min(width - 36f, height * .43f);
-            var discRect = new Rect(left + (width - discSize) * .5f, top + 108f, discSize, discSize);
+            var discSize = Mathf.Min(width - 18f, height * .35f);
+            var discRect = new Rect(left + (width - discSize) * .5f, top + 74f, discSize, discSize);
             DrawDisc(discRect);
 
-            var stripRect = new Rect(left + 14f, discRect.yMax + 10f, width - 28f, 96f);
+            var stripRect = new Rect(left + 14f, discRect.yMax + 8f, width - 28f, 82f);
             DrawHorizonStrip(stripRect);
 
-            var listTop = stripRect.yMax + 8f;
-            DrawSelectedReadout(new Rect(left + 14f, listTop, width - 28f, 46f));
-            DrawCityList(new Rect(left + 14f, listTop + 52f, width - 28f, top + height - (listTop + 52f) - 8f));
+            var readoutRect = new Rect(left + 14f, stripRect.yMax + 6f, width - 28f, 44f);
+            DrawSelectedReadout(readoutRect);
+
+            var searchRect = new Rect(left + 14f, readoutRect.yMax + 6f, width - 28f, 32f);
+            DrawSearchField(searchRect);
+
+            var listRect = new Rect(left + 14f, searchRect.yMax + 6f, width - 28f,
+                top + height - searchRect.yMax - 14f);
+            DrawCityList(listRect);
 
             DrawCloseButton(left, top, width);
         }
@@ -199,7 +214,8 @@ namespace TransparentEarth.UI
             GUI.DrawTexture(new Rect(observer.x - 9f, observer.y - 9f, 18f, 18f), _ring);
 
             GUI.color = Color.white;
-            GUI.Label(new Rect(rect.x, rect.y - 2f, rect.width, 14f),
+            // The pole belongs at the hub, not over the rim — that is the whole conceit.
+            GUI.Label(new Rect(center.x - 70f, center.y + 7f, 140f, 12f),
                 AppText.Get(TextKey.NorthPoleHub), _small);
             GUI.Label(new Rect(rect.x, rect.yMax - 13f, rect.width, 14f),
                 AppText.Get(TextKey.IceWall), _small);
@@ -265,15 +281,65 @@ namespace TransparentEarth.UI
                 $"{entry.Placement.DistanceKm:0} {AppText.Get(TextKey.Kilometers)}", _small);
         }
 
+        private void DrawSearchField(Rect rect)
+        {
+            var hasQuery = !string.IsNullOrEmpty(_query);
+            GUI.color = new Color(1f, 1f, 1f, .55f);
+            GUI.DrawTexture(rect, _card);
+            GUI.color = Color.white;
+
+            var fieldWidth = hasQuery ? rect.width - 52f : rect.width - 12f;
+            GUI.SetNextControlName("FlatEarthCitySearch");
+            var typed = GUI.TextField(new Rect(rect.x + 8f, rect.y + 3f, fieldWidth, rect.height - 6f),
+                _query, 40, _search);
+            if (typed != _query)
+            {
+                _query = typed;
+                _scroll.y = 0f;
+            }
+            if (!hasQuery && GUI.GetNameOfFocusedControl() != "FlatEarthCitySearch")
+            {
+                GUI.color = new Color(MedievalIconography.Ink.r, MedievalIconography.Ink.g,
+                    MedievalIconography.Ink.b, .45f);
+                GUI.Label(new Rect(rect.x + 12f, rect.y, rect.width - 24f, rect.height),
+                    AppText.Get(TextKey.PlaceSearchHint), _search);
+                GUI.color = Color.white;
+            }
+            if (hasQuery)
+            {
+                var clear = new Rect(rect.xMax - 44f, rect.y + 3f, 38f, rect.height - 6f);
+                GUI.color = MedievalIconography.Gilt;
+                GUI.DrawTexture(clear, _white);
+                GUI.color = Color.white;
+                GUI.Label(clear, "×", _button);
+                if (Clicked(clear))
+                {
+                    _query = string.Empty;
+                    GUIUtility.keyboardControl = 0;
+                    _scroll.y = 0f;
+                }
+            }
+        }
+
         private void DrawCityList(Rect rect)
         {
+            if (_filtered.Count == 0)
+            {
+                GUI.Label(rect, AppText.Get(TextKey.NoPlacesFound), _body);
+                return;
+            }
+
             const float rowHeight = 40f;
-            var inner = new Rect(0f, 0f, rect.width - 16f, _entries.Count * rowHeight);
+            var inner = new Rect(0f, 0f, rect.width - 16f, _filtered.Count * rowHeight);
+            HandleSwipe(rect, inner.height);
+
             _scroll = GUI.BeginScrollView(rect, _scroll, inner);
             var y = 0f;
-            foreach (var entry in _entries)
+            foreach (var entry in _filtered)
             {
                 var row = new Rect(0f, y, inner.width, rowHeight - 4f);
+                y += rowHeight;
+                if (row.yMax < _scroll.y || row.y > _scroll.y + rect.height) continue;
                 var isSelected = entry.Key == _selectedKey;
                 GUI.color = new Color(1f, 1f, 1f, isSelected ? .6f : .28f);
                 GUI.DrawTexture(row, _card);
@@ -286,10 +352,59 @@ namespace TransparentEarth.UI
                     $"{AppText.Get(TextKey.Azimuth)} {entry.Placement.AzimuthDegrees:000}°", _rowTitle);
                 GUI.Label(new Rect(row.xMax - 110f, row.y + 20f, 104f, 14f),
                     AppText.CardinalDirection(entry.Placement.AzimuthDegrees), _small);
-                if (Clicked(row)) Select(entry.Key);
-                y += rowHeight;
+                if (_dragTravel < 8f && Clicked(row)) Select(entry.Key);
             }
             GUI.EndScrollView();
+        }
+
+        private void HandleSwipe(Rect viewport, float contentHeight)
+        {
+            var maxScroll = Mathf.Max(0f, contentHeight - viewport.height);
+            var e = Event.current;
+            switch (e.type)
+            {
+                case EventType.MouseDown when viewport.Contains(e.mousePosition):
+                    _dragging = true;
+                    _lastDragY = e.mousePosition.y;
+                    _dragTravel = 0f;
+                    break;
+                case EventType.MouseDrag when _dragging:
+                {
+                    var dy = e.mousePosition.y - _lastDragY;
+                    _lastDragY = e.mousePosition.y;
+                    _dragTravel += Mathf.Abs(dy);
+                    _scroll.y = Mathf.Clamp(_scroll.y - dy, 0f, maxScroll);
+                    e.Use();
+                    break;
+                }
+                case EventType.MouseUp:
+                    // Swallow the release after a real drag so it does not land as a row tap.
+                    if (_dragging && _dragTravel > 8f) e.Use();
+                    _dragging = false;
+                    break;
+                case EventType.ScrollWheel when viewport.Contains(e.mousePosition):
+                    _scroll.y = Mathf.Clamp(_scroll.y + e.delta.y * 12f, 0f, maxScroll);
+                    e.Use();
+                    break;
+            }
+            _scroll.y = Mathf.Clamp(_scroll.y, 0f, maxScroll);
+        }
+
+        private void ApplyFilter()
+        {
+            _filtered.Clear();
+            var q = _query?.Trim();
+            if (string.IsNullOrEmpty(q))
+            {
+                _filtered.AddRange(_entries);
+                return;
+            }
+            foreach (var entry in _entries)
+            {
+                if (entry.City.Name.IndexOf(q, System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    PlaceNames.Get(entry.City.Name).IndexOf(q, System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    _filtered.Add(entry);
+            }
         }
 
         private void DrawPaywall(float left, float top, float width, float height)
@@ -338,10 +453,13 @@ namespace TransparentEarth.UI
 
         private void DrawCloseButton(float left, float top, float width)
         {
-            // A back link pinned under the title, clear of the sun/moon corners.
-            var rect = new Rect(left + 76f, top + 56f, 170f, 16f);
+            // A back tab pinned to the top-left, clear of the centred creed.
+            var rect = new Rect(left + 4f, top + 44f, 86f, 30f);
+            GUI.color = new Color(1f, 1f, 1f, .5f);
+            GUI.DrawTexture(rect, _card);
             GUI.color = MedievalIconography.Blood;
-            GUI.Label(rect, "‹ " + AppText.Get(TextKey.BackToGlobe), _backLink);
+            GUI.Label(new Rect(rect.x + 4f, rect.y, rect.width - 6f, rect.height),
+                "‹ " + AppText.Get(TextKey.BackToGlobe), _backLink);
             GUI.color = Color.white;
             if (Clicked(rect)) Close();
         }
@@ -428,16 +546,26 @@ namespace TransparentEarth.UI
             if (_title != null) return;
             var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             if (font == null) return;
-            _eyebrow = Style(font, 10, FontStyle.Bold, MedievalIconography.Blood, TextAnchor.MiddleLeft);
-            _title = Style(font, 19, FontStyle.Bold, MedievalIconography.Ink, TextAnchor.MiddleLeft);
+            _eyebrow = Style(font, 10, FontStyle.Bold, MedievalIconography.Blood, TextAnchor.MiddleCenter);
+            _title = Style(font, 17, FontStyle.Bold, MedievalIconography.Ink, TextAnchor.MiddleCenter);
             _body = Style(font, 12, FontStyle.Normal, MedievalIconography.Ink, TextAnchor.UpperLeft);
             _body.wordWrap = true;
             _small = Style(font, 9, FontStyle.Bold, MedievalIconography.Ink, TextAnchor.MiddleCenter);
             _rowTitle = Style(font, 12, FontStyle.Bold, MedievalIconography.Ink, TextAnchor.MiddleLeft);
             _button = Style(font, 13, FontStyle.Bold, new Color(.16f, .10f, .05f), TextAnchor.MiddleCenter);
-            _backLink = Style(font, 10, FontStyle.Bold, MedievalIconography.Blood, TextAnchor.MiddleLeft);
+            _backLink = Style(font, 9, FontStyle.Bold, MedievalIconography.Blood, TextAnchor.MiddleLeft);
+            _backLink.wordWrap = true;
             _creed = Style(font, 11, FontStyle.BoldAndItalic, MedievalIconography.Blood, TextAnchor.MiddleCenter);
             _creed.wordWrap = true;
+            _search = new GUIStyle(GUI.skin.textField)
+            {
+                font = font,
+                fontSize = 13,
+                alignment = TextAnchor.MiddleLeft,
+                padding = new RectOffset(8, 8, 4, 4)
+            };
+            _search.normal.textColor = MedievalIconography.Ink;
+            _search.focused.textColor = MedievalIconography.Ink;
         }
 
         private static GUIStyle Style(Font font, int size, FontStyle fontStyle, Color color, TextAnchor anchor) =>
