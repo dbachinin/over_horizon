@@ -33,6 +33,7 @@ namespace TransparentEarth.Editor
             PlayerSettings.defaultInterfaceOrientation = UIOrientation.Portrait;
             PlayerSettings.SetGraphicsAPIs(BuildTarget.Android, new[] { GraphicsDeviceType.Vulkan, GraphicsDeviceType.OpenGLES3 });
             PreserveRuntimeShaders();
+            ApplyAppIcon();
 
             if (!File.Exists(ScenePath))
             {
@@ -41,6 +42,53 @@ namespace TransparentEarth.Editor
                 EditorSceneManager.SaveScene(scene, ScenePath);
             }
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
+        }
+
+        private const string AppIconPath = "Assets/Branding/AppIcon.png";
+
+        private static void ApplyAppIcon()
+        {
+            if (AssetImporter.GetAtPath(AppIconPath) is TextureImporter importer &&
+                (importer.textureCompression != TextureImporterCompression.Uncompressed || importer.mipmapEnabled))
+            {
+                importer.textureCompression = TextureImporterCompression.Uncompressed;
+                importer.mipmapEnabled = false;
+                importer.maxTextureSize = 1024;
+                importer.SaveAndReimport();
+            }
+
+            var icon = AssetDatabase.LoadAssetAtPath<Texture2D>(AppIconPath);
+            if (icon == null)
+            {
+                Debug.LogWarning($"App icon not found at {AppIconPath}; keeping the default icon.");
+                return;
+            }
+
+            var target = NamedBuildTarget.Android;
+
+            // Legacy square icon slot.
+            try
+            {
+                var count = PlayerSettings.GetIconSizes(target, IconKind.Application).Length;
+                if (count > 0)
+                    PlayerSettings.SetIcons(target, Enumerable.Repeat(icon, count).ToArray(), IconKind.Application);
+            }
+            catch (System.Exception exception)
+            {
+                Debug.LogWarning($"Could not set application icons: {exception.Message}");
+            }
+
+            // Modern Android platform icons (legacy, round and adaptive layers).
+            foreach (var kind in PlayerSettings.GetSupportedIconKinds(target))
+            {
+                var icons = PlayerSettings.GetPlatformIcons(target, kind);
+                foreach (var platformIcon in icons)
+                {
+                    var layers = Mathf.Max(1, platformIcon.maxLayerCount);
+                    platformIcon.SetTextures(Enumerable.Repeat(icon, layers).ToArray());
+                }
+                PlayerSettings.SetPlatformIcons(target, kind, icons);
+            }
         }
 
         private static void PreserveRuntimeShaders()

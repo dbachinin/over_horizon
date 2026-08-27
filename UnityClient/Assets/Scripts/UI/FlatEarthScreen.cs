@@ -35,6 +35,7 @@ namespace TransparentEarth.UI
         private Texture2D _dot;
         private Texture2D _ring;
         private Texture2D _card;
+        private Texture2D _wedge;
         private readonly Texture2D[] _winds = new Texture2D[4];
 
         private GUIStyle _eyebrow;
@@ -55,6 +56,13 @@ namespace TransparentEarth.UI
         private bool _dragging;
         private float _lastDragY;
         private float _dragTravel;
+        private float _mapZoom = 1f;
+        private Vector2 _mapPan;
+        private float _discSize = 300f;
+        private float _gazeAngle;
+        private bool _mapDragging;
+        private Vector2 _mapLastDrag;
+        private float _mapDragTravel;
         private readonly List<Entry> _entries = new();
         private readonly List<Entry> _filtered = new();
         private GeoPoint _entriesFor;
@@ -81,6 +89,8 @@ namespace TransparentEarth.UI
         public void Open()
         {
             _open = true;
+            _mapZoom = 1f;
+            _mapPan = Vector2.zero;
             _earth?.SetInteractionEnabled(false);
             _earth?.SetWorldRenderingEnabled(false);
             if (!_cartographyRequested)
@@ -97,6 +107,87 @@ namespace TransparentEarth.UI
             _earth?.SetWorldRenderingEnabled(true);
         }
 
+        private void Update()
+        {
+            if (!_open) return;
+
+            if (_location != null)
+            {
+                var heading = _pose != null ? _pose.HeadingDegrees : 0f;
+                var obs = FlatEarthProjection.DiscPoint(_location.Current);
+                var ahead = FlatEarthProjection.DiscPoint(
+                    GeoMath.Destination(_location.Current, heading, 900d));
+                var v = new Vector2(ahead.x - obs.x, -(ahead.y - obs.y));
+                if (v.sqrMagnitude > 1e-8f)
+                {
+                    var target = Mathf.Atan2(v.x, -v.y) * Mathf.Rad2Deg;
+                    _gazeAngle = Mathf.LerpAngle(_gazeAngle, target,
+                        1f - Mathf.Exp(-7f * Time.deltaTime));
+                }
+            }
+
+            if (Input.touchCount != 2) return;
+            var scale = Mathf.Max(.85f, Screen.width / 430f);
+            var a = Input.GetTouch(0);
+            var b = Input.GetTouch(1);
+            var previous = ((a.position - a.deltaPosition) - (b.position - b.deltaPosition)).magnitude;
+            var current = (a.position - b.position).magnitude;
+            if (previous > 1f && current > 1f) SetZoom(_mapZoom * (current / previous));
+            var pan = (a.deltaPosition + b.deltaPosition) * (.5f / scale);
+            _mapPan += new Vector2(pan.x, -pan.y);
+            ClampPan();
+        }
+
+        private void SetZoom(float value)
+        {
+            _mapZoom = Mathf.Clamp(value, 1f, 6f);
+            if (_mapZoom <= 1.001f)
+            {
+                _mapZoom = 1f;
+                _mapPan = Vector2.zero;
+            }
+            ClampPan();
+        }
+
+        private void ClampPan()
+        {
+            var limit = _discSize * (_mapZoom * .5f + .35f);
+            _mapPan.x = Mathf.Clamp(_mapPan.x, -limit, limit);
+            _mapPan.y = Mathf.Clamp(_mapPan.y, -limit, limit);
+        }
+
+        private void HandleMapPan(Rect rect)
+        {
+            if (Input.touchCount >= 2)
+            {
+                _mapDragging = false;
+                return;
+            }
+            var e = Event.current;
+            switch (e.type)
+            {
+                case EventType.MouseDown when rect.Contains(e.mousePosition):
+                    _mapDragging = true;
+                    _mapLastDrag = e.mousePosition;
+                    _mapDragTravel = 0f;
+                    break;
+                case EventType.MouseDrag when _mapDragging:
+                {
+                    var delta = e.mousePosition - _mapLastDrag;
+                    _mapLastDrag = e.mousePosition;
+                    _mapDragTravel += delta.magnitude;
+                    _mapPan += delta;
+                    ClampPan();
+                    e.Use();
+                    break;
+                }
+                case EventType.MouseUp:
+                    if (_mapDragging && _mapDragTravel > 8f) e.Use();
+                    _mapDragging = false;
+                    break;
+            }
+        }
+
         private void Awake()
         {
             _parchment = MedievalIconography.ParchmentSheet(160);
@@ -111,6 +202,7 @@ namespace TransparentEarth.UI
             _dot = Disc(20, Color.white);
             _ring = Ring(28, Color.white);
             _card = Solid(new Color(.83f, .73f, .52f, .96f));
+            _wedge = WedgeTexture(96);
         }
 
         private void OnGUI()
@@ -130,15 +222,9 @@ namespace TransparentEarth.UI
             GUI.color = Color.white;
             TileParchment(new Rect(0f, 0f, Screen.width / scale, Screen.height / scale));
 
-            GUI.DrawTexture(new Rect(left + 6, top + 2, 44, 44), _sun, ScaleMode.ScaleToFit);
-            GUI.DrawTexture(new Rect(left + width - 50, top + 2, 44, 44), _moon, ScaleMode.ScaleToFit);
-            GUI.Label(new Rect(left + 54, top + 3, width - 108, 13),
-                AppText.Get(TextKey.FlatEarthMode), _eyebrow);
-            GUI.Label(new Rect(left + 54, top + 15, width - 108, 22),
-                AppText.Get(TextKey.FlatEarthTitle), _title);
-
             if (!FlatEarthEntitlement.IsUnlocked)
             {
+                DrawHeader(left, top, width);
                 DrawPaywall(left, top, width, height);
                 DrawCloseButton(left, top, width);
                 return;
@@ -146,11 +232,6 @@ namespace TransparentEarth.UI
 
             RefreshEntries();
             ApplyFilter();
-
-            GUI.color = MedievalIconography.Blood;
-            GUI.Label(new Rect(left + 96f, top + 40f, width - 108f, 30f),
-                AppText.Get(TextKey.SecretInitiate), _creed);
-            GUI.color = Color.white;
 
             var discSize = Mathf.Min(width - 18f, height * .35f);
             var discRect = new Rect(left + (width - discSize) * .5f, top + 74f, discSize, discSize);
@@ -169,56 +250,165 @@ namespace TransparentEarth.UI
                 top + height - searchRect.yMax - 14f);
             DrawCityList(listRect);
 
+            // Header last so the disc's masked overflow never sits on top of it.
+            DrawHeader(left, top, width);
+            GUI.color = MedievalIconography.Blood;
+            GUI.Label(new Rect(left + 96f, top + 40f, width - 108f, 30f),
+                AppText.Get(TextKey.SecretInitiate), _creed);
+            GUI.color = Color.white;
             DrawCloseButton(left, top, width);
+        }
+
+        private void DrawHeader(float left, float top, float width)
+        {
+            GUI.color = Color.white;
+            GUI.DrawTexture(new Rect(left + 6, top + 2, 44, 44), _sun, ScaleMode.ScaleToFit);
+            GUI.DrawTexture(new Rect(left + width - 50, top + 2, 44, 44), _moon, ScaleMode.ScaleToFit);
+            GUI.Label(new Rect(left + 54, top + 3, width - 108, 13),
+                AppText.Get(TextKey.FlatEarthMode), _eyebrow);
+            GUI.Label(new Rect(left + 54, top + 15, width - 108, 22),
+                AppText.Get(TextKey.FlatEarthTitle), _title);
         }
 
         private void DrawDisc(Rect rect)
         {
-            GUI.color = Color.white;
-            GUI.DrawTexture(rect, _plate, ScaleMode.ScaleToFit);
-            var center = rect.center;
-            var radius = rect.width * .46f;
-
-            foreach (var wind in Enumerable.Range(0, 4))
+            _discSize = rect.width;
+            var ev = Event.current;
+            if (ev.type == EventType.ScrollWheel && rect.Contains(ev.mousePosition))
             {
-                var a = (45f + wind * 90f) * Mathf.Deg2Rad;
-                var p = center + new Vector2(Mathf.Cos(a), -Mathf.Sin(a)) * (radius + 4f);
-                GUI.DrawTexture(new Rect(p.x - 24f, p.y - 24f, 48f, 48f), _winds[wind], ScaleMode.ScaleToFit);
+                SetZoom(_mapZoom * (1f - ev.delta.y * .06f));
+                ev.Use();
             }
 
-            var observer = DiscToScreen(FlatEarthProjection.DiscPoint(_location.Current), center, radius);
+            HandleMapPan(rect);
+
+            var radius = rect.width * .46f * _mapZoom;
+            var theta = _gazeAngle; // rotate the whole map by -theta so the gaze points up
+
+            // The disc stays centred in its frame (never clipped at the top); the map turns
+            // around the North Pole and the observer orbits with it.
+            var mapCenter = rect.center + _mapPan;
+            var obsDisc = FlatEarthProjection.DiscPoint(_location.Current);
+
+            Vector2 ToScreen(Vector2 disc) =>
+                mapCenter + Rotate(new Vector2(disc.x * radius, -disc.y * radius), -theta);
+
+            // The four winds sit behind the disc, tucked under its rim.
+            var frameCenter = rect.center;
+            var frameRadius = rect.width * .46f;
+            GUI.color = Color.white;
+            foreach (var wind in Enumerable.Range(0, 4))
+            {
+                var wa = (45f + wind * 90f) * Mathf.Deg2Rad;
+                var wp = frameCenter + new Vector2(Mathf.Cos(wa), -Mathf.Sin(wa)) * (frameRadius - 10f);
+                GUI.DrawTexture(new Rect(wp.x - 26f, wp.y - 26f, 52f, 52f), _winds[wind], ScaleMode.ScaleToFit);
+            }
+
+            var savedMatrix = GUI.matrix;
+            var scale = Mathf.Max(.85f, Screen.width / 430f);
+            var pivotScreen = mapCenter * scale;
+            GUI.matrix = Matrix4x4.TRS(pivotScreen, Quaternion.Euler(0f, 0f, -theta), Vector3.one)
+                         * Matrix4x4.TRS(-pivotScreen, Quaternion.identity, Vector3.one)
+                         * savedMatrix;
+            GUI.color = Color.white;
+            var d = rect.width * _mapZoom;
+            GUI.DrawTexture(new Rect(mapCenter.x - d * .5f, mapCenter.y - d * .5f, d, d),
+                _plate, ScaleMode.ScaleToFit);
+            GUI.matrix = savedMatrix;
+
+            var observer = ToScreen(obsDisc);
             Entry? selected = null;
             foreach (var entry in _entries)
             {
-                var p = DiscToScreen(entry.Placement.Disc, center, radius);
+                var p = ToScreen(entry.Placement.Disc);
                 var isSelected = entry.Key == _selectedKey;
                 if (isSelected) selected = entry;
+                if (!rect.Contains(p)) continue;
                 var size = isSelected ? 9f : entry.City.Importance >= 90 ? 6f : 4.5f;
                 GUI.color = isSelected ? MedievalIconography.Blood : MedievalIconography.Ink;
                 GUI.DrawTexture(new Rect(p.x - size * .5f, p.y - size * .5f, size, size), _dot);
-                var hit = new Rect(p.x - 12f, p.y - 12f, 24f, 24f);
-                if (Clicked(hit)) Select(entry.Key);
+                if (_mapDragTravel < 8f && Clicked(new Rect(p.x - 12f, p.y - 12f, 24f, 24f))) Select(entry.Key);
             }
 
             if (selected.HasValue)
             {
-                var target = DiscToScreen(selected.Value.Placement.Disc, center, radius);
+                var target = ToScreen(selected.Value.Placement.Disc);
                 DrawLine(observer, target, 2.4f, MedievalIconography.Blood);
                 GUI.color = MedievalIconography.Gilt;
                 GUI.DrawTexture(new Rect(target.x - 14f, target.y - 14f, 28f, 28f), _ring);
             }
 
-            GUI.color = MedievalIconography.Gilt;
-            GUI.DrawTexture(new Rect(observer.x - 5f, observer.y - 5f, 10f, 10f), _dot);
-            GUI.color = MedievalIconography.Ink;
-            GUI.DrawTexture(new Rect(observer.x - 9f, observer.y - 9f, 18f, 18f), _ring);
+            var pole = ToScreen(Vector2.zero);
+            GUI.color = Color.white;
+            if (rect.Contains(pole))
+                GUI.Label(new Rect(pole.x - 70f, pole.y + 7f, 140f, 12f),
+                    AppText.Get(TextKey.NorthPoleHub), _small);
+
+            MaskAround(rect);
+            DrawGazeWedge(mapCenter, rect);
+
+            if (rect.Contains(observer))
+            {
+                GUI.color = MedievalIconography.Gilt;
+                GUI.DrawTexture(new Rect(observer.x - 5f, observer.y - 5f, 10f, 10f), _dot);
+                GUI.color = MedievalIconography.Ink;
+                GUI.DrawTexture(new Rect(observer.x - 9f, observer.y - 9f, 18f, 18f), _ring);
+            }
 
             GUI.color = Color.white;
-            // The pole belongs at the hub, not over the rim — that is the whole conceit.
-            GUI.Label(new Rect(center.x - 70f, center.y + 7f, 140f, 12f),
-                AppText.Get(TextKey.NorthPoleHub), _small);
             GUI.Label(new Rect(rect.x, rect.yMax - 13f, rect.width, 14f),
                 AppText.Get(TextKey.IceWall), _small);
+
+            if (_mapZoom > 1.02f)
+            {
+                var home = new Rect(rect.xMax - 40f, rect.y + 4f, 36f, 24f);
+                GUI.color = MedievalIconography.Gilt;
+                GUI.DrawTexture(home, _white);
+                GUI.color = new Color(.16f, .10f, .05f);
+                GUI.Label(home, "1:1", _small);
+                GUI.color = Color.white;
+                if (Clicked(home))
+                {
+                    _mapZoom = 1f;
+                    _mapPan = Vector2.zero;
+                }
+            }
+        }
+
+        private void DrawGazeWedge(Vector2 apex, Rect rect)
+        {
+            var length = (apex.y - rect.y) - 6f;
+            if (length < 20f) return;
+            var halfWidth = length * .34f;
+            var tint = MedievalIconography.Gilt;
+            tint.a = .9f;
+            GUI.color = new Color(tint.r, tint.g, tint.b, .22f);
+            GUI.DrawTexture(new Rect(apex.x - halfWidth, apex.y - length, halfWidth * 2f, length), _wedge);
+            GUI.color = tint;
+            DrawLine(apex, new Vector2(apex.x - halfWidth, apex.y - length), 1.6f, tint);
+            DrawLine(apex, new Vector2(apex.x + halfWidth, apex.y - length), 1.6f, tint);
+            GUI.color = Color.white;
+            GUI.Label(new Rect(apex.x - 60f, apex.y - length - 2f, 120f, 12f),
+                AppText.Get(TextKey.Gaze), _small);
+        }
+
+        private void MaskAround(Rect hole)
+        {
+            var scale = Mathf.Max(.85f, Screen.width / 430f);
+            var w = Screen.width / scale;
+            var h = Screen.height / scale;
+            TileParchment(new Rect(0f, 0f, w, hole.y));
+            TileParchment(new Rect(0f, hole.yMax, w, h - hole.yMax));
+            TileParchment(new Rect(0f, hole.y, hole.x, hole.height));
+            TileParchment(new Rect(hole.xMax, hole.y, w - hole.xMax, hole.height));
+        }
+
+        private static Vector2 Rotate(Vector2 v, float degrees)
+        {
+            var r = degrees * Mathf.Deg2Rad;
+            var c = Mathf.Cos(r);
+            var s = Mathf.Sin(r);
+            return new Vector2(v.x * c - v.y * s, v.x * s + v.y * c);
         }
 
         private void DrawHorizonStrip(Rect rect)
@@ -518,27 +708,26 @@ namespace TransparentEarth.UI
             _selectedKey = _selectedKey == key ? null : key;
         }
 
-        private static Vector2 DiscToScreen(Vector2 disc, Vector2 center, float radius) =>
-            new(center.x + disc.x * radius, center.y - disc.y * radius);
-
+        // Stamped rather than rotated so it is immune to the GUI.matrix rotation used by the map.
         private void DrawLine(Vector2 a, Vector2 b, float width, Color color)
         {
-            var matrix = GUI.matrix;
-            var delta = b - a;
-            var length = delta.magnitude;
-            if (length < .01f) return;
-            var angle = Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg;
-            GUIUtility.RotateAroundPivot(angle, a);
+            var length = (b - a).magnitude;
+            if (length < 1f) return;
+            var steps = Mathf.CeilToInt(length / 2.5f);
             GUI.color = color;
-            GUI.DrawTexture(new Rect(a.x, a.y - width * .5f, length, width), _white);
-            GUI.matrix = matrix;
+            for (var i = 0; i <= steps; i++)
+            {
+                var p = Vector2.Lerp(a, b, i / (float)steps);
+                GUI.DrawTexture(new Rect(p.x - width * .5f, p.y - width * .5f, width, width), _dot);
+            }
             GUI.color = Color.white;
         }
 
         private void TileParchment(Rect area)
         {
+            if (area.width <= 0f || area.height <= 0f) return;
             GUI.DrawTextureWithTexCoords(area, _parchment,
-                new Rect(0f, 0f, area.width / 160f, area.height / 160f));
+                new Rect(area.x / 160f, area.y / 160f, area.width / 160f, area.height / 160f));
         }
 
         private void EnsureStyles()
@@ -610,6 +799,32 @@ namespace TransparentEarth.UI
                 var d = Mathf.Sqrt((x - c) * (x - c) + (y - c) * (y - c));
                 var a = Mathf.Clamp01(size * .5f - d);
                 pixels[y * size + x] = new Color(color.r, color.g, color.b, color.a * a);
+            }
+            texture.SetPixels32(pixels);
+            texture.Apply(false, true);
+            return texture;
+        }
+
+        private static Texture2D WedgeTexture(int size)
+        {
+            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                hideFlags = HideFlags.HideAndDontSave,
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp
+            };
+            var pixels = new Color32[size * size];
+            var mid = (size - 1) * .5f;
+            for (var y = 0; y < size; y++)
+            {
+                var frac = y / (size - 1f); // 0 = apex row, 1 = wide base row
+                var halfSpan = frac * mid + .5f;
+                for (var x = 0; x < size; x++)
+                {
+                    var inside = Mathf.Abs(x - mid) <= halfSpan ? 1f : 0f;
+                    var alpha = inside * Mathf.Lerp(.04f, 1f, frac);
+                    pixels[y * size + x] = new Color(1f, 1f, 1f, alpha);
+                }
             }
             texture.SetPixels32(pixels);
             texture.Apply(false, true);

@@ -47,6 +47,21 @@ namespace TransparentEarth.Geo
         public static GeoPoint Antipode(GeoPoint point) =>
             new GeoPoint(-point.Latitude, NormalizeLongitude(point.Longitude + 180.0), point.AltitudeMeters);
 
+        /// Great-circle destination reached from <paramref name="origin"/> by travelling
+        /// <paramref name="distanceKm"/> along the initial <paramref name="bearingDegrees"/>.
+        public static GeoPoint Destination(GeoPoint origin, double bearingDegrees, double distanceKm)
+        {
+            var angular = distanceKm / EarthRadiusKm;
+            var bearing = bearingDegrees * Math.PI / 180.0;
+            var lat1 = origin.Latitude * Math.PI / 180.0;
+            var lon1 = origin.Longitude * Math.PI / 180.0;
+            var lat2 = Math.Asin(Math.Sin(lat1) * Math.Cos(angular) +
+                                 Math.Cos(lat1) * Math.Sin(angular) * Math.Cos(bearing));
+            var lon2 = lon1 + Math.Atan2(Math.Sin(bearing) * Math.Sin(angular) * Math.Cos(lat1),
+                                         Math.Cos(angular) - Math.Sin(lat1) * Math.Sin(lat2));
+            return new GeoPoint(lat2 * 180.0 / Math.PI, NormalizeLongitude(lon2 * 180.0 / Math.PI));
+        }
+
         public static double NormalizeLongitude(double longitude) =>
             ((longitude + 540.0) % 360.0) - 180.0;
 

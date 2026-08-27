@@ -15,7 +15,7 @@ namespace TransparentEarth.I18n
         NoPlacesFound, SearchUnavailable, SavedPlaces,
         FlatEarthMode, FlatEarthTitle, FlatEarthTagline, Unlock, RestorePurchase,
         PurchasePending, PurchaseFailed, BackToGlobe, Azimuth, IceWall, NorthPoleHub,
-        OneHorizonLine, WhereToLook, SecretInitiate
+        OneHorizonLine, WhereToLook, SecretInitiate, Gaze
     }
 
     public static class AppText
@@ -85,7 +85,8 @@ namespace TransparentEarth.I18n
             [TextKey.OneHorizonLine] = "EVERY CITY ON ONE LINE",
             [TextKey.WhereToLook] = "TAP A CITY TO TAKE ITS BEARING",
             [TextKey.SecretInitiate] =
-                "You now hold the great secret the scientists keep hidden from the world."
+                "You now hold the great secret the scientists keep hidden from the world.",
+            [TextKey.Gaze] = "YOUR GAZE"
         };
 
         private static readonly IReadOnlyDictionary<TextKey, string> Russian = new Dictionary<TextKey, string>
@@ -153,7 +154,8 @@ namespace TransparentEarth.I18n
             [TextKey.OneHorizonLine] = "ВСЕ ГОРОДА НА ОДНОЙ ЛИНИИ",
             [TextKey.WhereToLook] = "КОСНИТЕСЬ ГОРОДА, ЧТОБЫ ВЗЯТЬ АЗИМУТ",
             [TextKey.SecretInitiate] =
-                "Отныне вы — обладатель великой тайны, которую учёные скрывают от мира."
+                "Отныне вы — обладатель великой тайны, которую учёные скрывают от мира.",
+            [TextKey.Gaze] = "ВАШ ВЗГЛЯД"
         };
 
         private static readonly IReadOnlyDictionary<TextKey, string> Serbian = new Dictionary<TextKey, string>
@@ -221,7 +223,8 @@ namespace TransparentEarth.I18n
             [TextKey.OneHorizonLine] = "SVI GRADOVI NA JEDNOJ LINIJI",
             [TextKey.WhereToLook] = "DODIRNITE GRAD ZA AZIMUT",
             [TextKey.SecretInitiate] =
-                "Od sada ste čuvar velike tajne koju naučnici kriju od sveta."
+                "Od sada ste čuvar velike tajne koju naučnici kriju od sveta.",
+            [TextKey.Gaze] = "VAŠ POGLED"
         };
 
         public static string Get(TextKey key) => GetForLanguage(key, Application.systemLanguage);
