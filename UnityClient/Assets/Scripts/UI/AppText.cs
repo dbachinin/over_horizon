@@ -70,7 +70,7 @@ namespace TransparentEarth.I18n
             [TextKey.SearchUnavailable] = "SEARCH UNAVAILABLE",
             [TextKey.SavedPlaces] = "SAVED PLACES",
             [TextKey.FlatEarthMode] = "FLAT EARTHER MODE",
-            [TextKey.FlatEarthTitle] = "The Earth Made Flat",
+            [TextKey.FlatEarthTitle] = "Flat Earth Mode",
             [TextKey.FlatEarthTagline] =
                 "The sun, the moon and the four winds. Every city pinned to one honest line, " +
                 "the South Pole stretched round the ice wall, and a true bearing to steer by.",
@@ -139,7 +139,7 @@ namespace TransparentEarth.I18n
             [TextKey.SearchUnavailable] = "ПОИСК НЕДОСТУПЕН",
             [TextKey.SavedPlaces] = "СОХРАНЁННЫЕ МЕСТА",
             [TextKey.FlatEarthMode] = "РЕЖИМ ПЛОСКОЗЕМЕЛЬЩИКА",
-            [TextKey.FlatEarthTitle] = "Земля, расправленная в блин",
+            [TextKey.FlatEarthTitle] = "Режим плоской земли",
             [TextKey.FlatEarthTagline] =
                 "Солнце, луна и четыре ветра. Все города — на одной честной линии, " +
                 "Южный полюс растянут по ледяной стене, а азимут укажет курс.",
@@ -208,7 +208,7 @@ namespace TransparentEarth.I18n
             [TextKey.SearchUnavailable] = "PRETRAGA NIJE DOSTUPNA",
             [TextKey.SavedPlaces] = "SAČUVANA MESTA",
             [TextKey.FlatEarthMode] = "REŽIM RAVNOZEMLJAŠA",
-            [TextKey.FlatEarthTitle] = "Zemlja razvijena u ravan",
+            [TextKey.FlatEarthTitle] = "Režim ravne zemlje",
             [TextKey.FlatEarthTagline] =
                 "Sunce, mesec i četiri vetra. Svaki grad na jednoj poštenoj liniji, " +
                 "Južni pol razvučen po ledenom zidu, a azimut da drži kurs.",

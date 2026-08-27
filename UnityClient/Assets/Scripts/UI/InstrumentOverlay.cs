@@ -80,7 +80,9 @@ namespace TransparentEarth.UI
             _leaderRight = Leader(pointsRight: true);
             _leaderLeft = Leader(pointsRight: false);
             _directionArrow = DirectionArrow();
-            _flatEarthButton = MedievalIconography.ArseHorn(96);
+            _flatEarthButton = Resources.Load<Texture2D>("FlatEarthEntry") is { } entryIcon
+                ? entryIcon
+                : MedievalIconography.ArseHorn(96);
         }
 
         private void OnGUI()

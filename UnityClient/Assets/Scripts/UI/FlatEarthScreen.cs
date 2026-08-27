@@ -195,7 +195,9 @@ namespace TransparentEarth.UI
             _sun = MedievalIconography.SunFace(112);
             _moon = MedievalIconography.MoonFace(112);
             _rose = MedievalIconography.CompassRose(120);
-            _arse = MedievalIconography.ArseHorn(120);
+            _arse = Resources.Load<Texture2D>("FlatEarthEntry") is { } entryIcon
+                ? entryIcon
+                : MedievalIconography.ArseHorn(120);
             for (var i = 0; i < 4; i++)
                 _winds[i] = MedievalIconography.WindHead(96, 45f + i * 90f);
             _white = Solid(Color.white);
@@ -607,11 +609,11 @@ namespace TransparentEarth.UI
             GUI.DrawTexture(new Rect(card.x + 3f, card.yMax - 5f, card.width - 6f, 2f), _white);
             GUI.color = Color.white;
 
-            GUI.DrawTexture(new Rect(card.center.x - 52f, card.y + 16f, 104f, 104f), _arse, ScaleMode.ScaleToFit);
-            GUI.Label(new Rect(card.x + 18f, card.y + 126f, card.width - 36f, 26f),
-                AppText.Get(TextKey.FlatEarthTitle), _title);
-            GUI.Label(new Rect(card.x + 18f, card.y + 156f, card.width - 36f, 96f),
-                AppText.Get(TextKey.FlatEarthTagline), _body);
+            GUI.DrawTexture(new Rect(card.center.x - 58f, card.y + 12f, 116f, 116f), _arse, ScaleMode.ScaleToFit);
+            GUI.color = MedievalIconography.Blood;
+            GUI.Label(new Rect(card.x + 20f, card.y + 132f, card.width - 40f, 120f),
+                AppText.Get(TextKey.SecretInitiate), _creed);
+            GUI.color = Color.white;
 
             var state = FlatEarthEntitlement.State;
             var buy = new Rect(card.x + 24f, card.yMax - 118f, card.width - 48f, 46f);
