@@ -12,7 +12,10 @@ namespace TransparentEarth.I18n
         TransparentEarth, BeyondHorizon, On, Off, GlobeLayers, Grid, Continents, Countries, References,
         Overview, Antipode, Map, Places, Profile, Real, Live, Demo, Kilometers,
         PlaceSearchTitle, PlaceSearchHint, Search, SearchResults, AddPlace, Added,
-        NoPlacesFound, SearchUnavailable, SavedPlaces
+        NoPlacesFound, SearchUnavailable, SavedPlaces,
+        FlatEarthMode, FlatEarthTitle, FlatEarthTagline, Unlock, RestorePurchase,
+        PurchasePending, PurchaseFailed, BackToGlobe, Azimuth, IceWall, NorthPoleHub,
+        OneHorizonLine, WhereToLook
     }
 
     public static class AppText
@@ -65,7 +68,22 @@ namespace TransparentEarth.I18n
             [TextKey.Added] = "ADDED",
             [TextKey.NoPlacesFound] = "NOTHING FOUND",
             [TextKey.SearchUnavailable] = "SEARCH UNAVAILABLE",
-            [TextKey.SavedPlaces] = "SAVED PLACES"
+            [TextKey.SavedPlaces] = "SAVED PLACES",
+            [TextKey.FlatEarthMode] = "FLAT EARTHER MODE",
+            [TextKey.FlatEarthTitle] = "The Earth Made Flat",
+            [TextKey.FlatEarthTagline] =
+                "The sun, the moon and the four winds. Every city pinned to one honest line, " +
+                "the South Pole stretched round the ice wall, and a true bearing to steer by.",
+            [TextKey.Unlock] = "UNLOCK",
+            [TextKey.RestorePurchase] = "RESTORE PURCHASE",
+            [TextKey.PurchasePending] = "CONSULTING THE GUILD…",
+            [TextKey.PurchaseFailed] = "THE BARGAIN FELL THROUGH",
+            [TextKey.BackToGlobe] = "BACK TO THE GLOBE",
+            [TextKey.Azimuth] = "AZ",
+            [TextKey.IceWall] = "ICE WALL · SOUTH POLE",
+            [TextKey.NorthPoleHub] = "NORTH POLE",
+            [TextKey.OneHorizonLine] = "EVERY CITY ON ONE LINE",
+            [TextKey.WhereToLook] = "TAP A CITY TO TAKE ITS BEARING"
         };
 
         private static readonly IReadOnlyDictionary<TextKey, string> Russian = new Dictionary<TextKey, string>
@@ -116,7 +134,22 @@ namespace TransparentEarth.I18n
             [TextKey.Added] = "ДОБАВЛЕНО",
             [TextKey.NoPlacesFound] = "НИЧЕГО НЕ НАЙДЕНО",
             [TextKey.SearchUnavailable] = "ПОИСК НЕДОСТУПЕН",
-            [TextKey.SavedPlaces] = "СОХРАНЁННЫЕ МЕСТА"
+            [TextKey.SavedPlaces] = "СОХРАНЁННЫЕ МЕСТА",
+            [TextKey.FlatEarthMode] = "РЕЖИМ ПЛОСКОЗЕМЕЛЬЩИКА",
+            [TextKey.FlatEarthTitle] = "Земля, расправленная в блин",
+            [TextKey.FlatEarthTagline] =
+                "Солнце, луна и четыре ветра. Все города — на одной честной линии, " +
+                "Южный полюс растянут по ледяной стене, а азимут укажет курс.",
+            [TextKey.Unlock] = "ОТКРЫТЬ",
+            [TextKey.RestorePurchase] = "ВОССТАНОВИТЬ ПОКУПКУ",
+            [TextKey.PurchasePending] = "СОВЕТ С ГИЛЬДИЕЙ…",
+            [TextKey.PurchaseFailed] = "СДЕЛКА СОРВАЛАСЬ",
+            [TextKey.BackToGlobe] = "ВЕРНУТЬСЯ К ШАРУ",
+            [TextKey.Azimuth] = "АЗ",
+            [TextKey.IceWall] = "ЛЕДЯНАЯ СТЕНА · ЮЖНЫЙ ПОЛЮС",
+            [TextKey.NorthPoleHub] = "СЕВЕРНЫЙ ПОЛЮС",
+            [TextKey.OneHorizonLine] = "ВСЕ ГОРОДА НА ОДНОЙ ЛИНИИ",
+            [TextKey.WhereToLook] = "КОСНИТЕСЬ ГОРОДА, ЧТОБЫ ВЗЯТЬ АЗИМУТ"
         };
 
         private static readonly IReadOnlyDictionary<TextKey, string> Serbian = new Dictionary<TextKey, string>
@@ -167,7 +200,22 @@ namespace TransparentEarth.I18n
             [TextKey.Added] = "DODATO",
             [TextKey.NoPlacesFound] = "NEMA REZULTATA",
             [TextKey.SearchUnavailable] = "PRETRAGA NIJE DOSTUPNA",
-            [TextKey.SavedPlaces] = "SAČUVANA MESTA"
+            [TextKey.SavedPlaces] = "SAČUVANA MESTA",
+            [TextKey.FlatEarthMode] = "REŽIM RAVNOZEMLJAŠA",
+            [TextKey.FlatEarthTitle] = "Zemlja razvijena u ravan",
+            [TextKey.FlatEarthTagline] =
+                "Sunce, mesec i četiri vetra. Svaki grad na jednoj poštenoj liniji, " +
+                "Južni pol razvučen po ledenom zidu, a azimut da drži kurs.",
+            [TextKey.Unlock] = "OTKLJUČAJ",
+            [TextKey.RestorePurchase] = "OBNOVI KUPOVINU",
+            [TextKey.PurchasePending] = "DOGOVOR SA ESNAFOM…",
+            [TextKey.PurchaseFailed] = "POGODBA JE PROPALA",
+            [TextKey.BackToGlobe] = "NAZAD NA GLOBUS",
+            [TextKey.Azimuth] = "AZ",
+            [TextKey.IceWall] = "LEDENI ZID · JUŽNI POL",
+            [TextKey.NorthPoleHub] = "SEVERNI POL",
+            [TextKey.OneHorizonLine] = "SVI GRADOVI NA JEDNOJ LINIJI",
+            [TextKey.WhereToLook] = "DODIRNITE GRAD ZA AZIMUT"
         };
 
         public static string Get(TextKey key) => GetForLanguage(key, Application.systemLanguage);

@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Globalization;
 using TransparentEarth.Geo;
 using TransparentEarth.Sensors;
 using UnityEngine;
@@ -104,17 +103,14 @@ namespace TransparentEarth.Rendering
 
         private static List<List<Vector3>> ParseLines(string json, GeoPoint observer, float radius)
         {
-            var lines = new List<List<Vector3>>(160);
-            var search = 0;
-            while ((search = json.IndexOf("\"coordinates\":", search, StringComparison.Ordinal)) >= 0)
+            var paths = GeoJsonLines.Parse(json);
+            var lines = new List<List<Vector3>>(paths.Count);
+            foreach (var path in paths)
             {
-                var start = json.IndexOf('[', search);
-                var lastMulti = json.LastIndexOf("\"type\":\"MultiLineString\"", search, StringComparison.Ordinal);
-                var lastLine = json.LastIndexOf("\"type\":\"LineString\"", search, StringComparison.Ordinal);
-                var index = start;
-                if (lastMulti > lastLine) ReadMultiLine(json, ref index, observer, radius, lines);
-                else ReadLine(json, ref index, observer, radius, lines);
-                search = Math.Max(index, search + 16);
+                var points = new List<Vector3>(path.Count);
+                foreach (var geoPoint in path)
+                    points.Add(GeoMath.SurfaceNormalEnu(observer, geoPoint) * radius);
+                lines.Add(points);
             }
             return lines;
         }
@@ -130,41 +126,6 @@ namespace TransparentEarth.Rendering
             mesh.SetIndices(indices, MeshTopology.Lines, 0, false);
             mesh.RecalculateBounds();
             return mesh;
-        }
-
-        private static void ReadMultiLine(string json, ref int index, GeoPoint observer, float radius,
-            List<List<Vector3>> lines)
-        {
-            index++;
-            while (index < json.Length)
-            {
-                Skip(json, ref index);
-                if (json[index] == ']') { index++; return; }
-                ReadLine(json, ref index, observer, radius, lines);
-            }
-        }
-
-        private static void ReadLine(string json, ref int index, GeoPoint observer, float radius,
-            List<List<Vector3>> lines)
-        {
-            index++;
-            var points = new List<Vector3>(64);
-            while (index < json.Length)
-            {
-                Skip(json, ref index);
-                if (json[index] == ']') { index++; break; }
-                if (json[index] != '[') { index++; continue; }
-                index++;
-                var longitude = ReadNumber(json, ref index);
-                Skip(json, ref index);
-                if (json[index] == ',') index++;
-                var latitude = ReadNumber(json, ref index);
-                while (index < json.Length && json[index] != ']') index++;
-                if (index < json.Length) index++;
-                points.Add(GeoMath.SurfaceNormalEnu(observer, new GeoPoint(latitude, longitude)) * radius);
-            }
-
-            if (points.Count > 1) lines.Add(points);
         }
 
         private static void AddSmoothedLine(List<Vector3> points, List<Vector3> vertices)
@@ -310,19 +271,6 @@ namespace TransparentEarth.Rendering
                 winding += Mathf.Atan2(Vector3.Dot(point, Vector3.Cross(a, b)), Vector3.Dot(a, b));
             }
             return Mathf.Abs(winding) > Mathf.PI;
-        }
-
-        private static double ReadNumber(string json, ref int index)
-        {
-            Skip(json, ref index);
-            var start = index;
-            while (index < json.Length && (char.IsDigit(json[index]) || json[index] is '-' or '+' or '.' or 'e' or 'E')) index++;
-            return double.Parse(json.Substring(start, index - start), CultureInfo.InvariantCulture);
-        }
-
-        private static void Skip(string json, ref int index)
-        {
-            while (index < json.Length && (char.IsWhiteSpace(json[index]) || json[index] == ',')) index++;
         }
     }
 }

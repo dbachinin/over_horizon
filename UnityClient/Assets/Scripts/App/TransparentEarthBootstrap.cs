@@ -40,8 +40,11 @@ namespace TransparentEarth.App
             streamer.Initialize(root.transform, camera, earth, location);
             var map = root.AddComponent<OpenStreetMapTileLoader>();
 
+            var flatEarth = root.AddComponent<FlatEarthScreen>();
+            flatEarth.Initialize(location, posePivot, streamer, earth);
+
             var overlay = root.AddComponent<InstrumentOverlay>();
-            overlay.Initialize(camera, posePivot, location, streamer.VisibleMarkers, map, streamer, earth);
+            overlay.Initialize(camera, posePivot, location, streamer.VisibleMarkers, map, streamer, earth, flatEarth);
         }
     }
 }

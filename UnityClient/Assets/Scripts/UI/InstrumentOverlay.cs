@@ -22,6 +22,7 @@ namespace TransparentEarth.UI
         private OpenStreetMapTileLoader _map;
         private GeoObjectStreamer _streamer;
         private EarthRenderer _earth;
+        private FlatEarthScreen _flatEarth;
         private Texture2D _panel;
         private Texture2D _mint;
         private Texture2D _white;
@@ -31,6 +32,7 @@ namespace TransparentEarth.UI
         private Texture2D _leaderRight;
         private Texture2D _leaderLeft;
         private Texture2D _directionArrow;
+        private Texture2D _flatEarthButton;
         private GUIStyle _eyebrow;
         private GUIStyle _title;
         private GUIStyle _small;
@@ -55,7 +57,7 @@ namespace TransparentEarth.UI
 
         public void Initialize(Camera sceneCamera, DevicePoseProvider pose, LocationProvider location,
             IReadOnlyList<CityMarkerView> markers, OpenStreetMapTileLoader map, GeoObjectStreamer streamer,
-            EarthRenderer earth)
+            EarthRenderer earth, FlatEarthScreen flatEarth)
         {
             _camera = sceneCamera;
             _pose = pose;
@@ -64,6 +66,7 @@ namespace TransparentEarth.UI
             _map = map;
             _streamer = streamer;
             _earth = earth;
+            _flatEarth = flatEarth;
         }
 
         private void Awake()
@@ -77,11 +80,13 @@ namespace TransparentEarth.UI
             _leaderRight = Leader(pointsRight: true);
             _leaderLeft = Leader(pointsRight: false);
             _directionArrow = DirectionArrow();
+            _flatEarthButton = MedievalIconography.ArseHorn(96);
         }
 
         private void OnGUI()
         {
             if (_camera == null) return;
+            if (_flatEarth != null && _flatEarth.IsOpen) return;
             EnsureStyles();
             if (_title == null) return;
             var safe = Screen.safeArea;
@@ -93,15 +98,16 @@ namespace TransparentEarth.UI
             var top = (Screen.height - safe.yMax) / scale;
             _earth.SetInteractionEnabled(_tab == 0);
 
-            GUI.Label(new Rect(left + 20, top + 16, 260, 18), "OVERHORIZON", _eyebrow);
+            GUI.Label(new Rect(left + 64, top + 16, 260, 18), "OVERHORIZON", _eyebrow);
             var title = _tab switch
             {
                 0 => AppText.Get(TextKey.LookThroughHorizon),
                 1 => AppText.Get(TextKey.OtherSideOfEarth),
                 _ => AppText.Get(TextKey.PlaceSearchTitle)
             };
-            GUI.Label(new Rect(left + 20, top + 34, 350, 34), title, _title);
+            GUI.Label(new Rect(left + 64, top + 34, 320, 34), title, _title);
             StatusPill(new Rect(left + width - 82, top + 20, 62, 28));
+            FlatEarthEntryButton(left, top);
 
             if (_tab == 0)
             {
@@ -639,6 +645,15 @@ namespace TransparentEarth.UI
             GUI.Label(new Rect(rect.x, rect.y + 5, rect.width, 22), "N", compassStyle);
             GUI.Label(new Rect(rect.x, rect.y + 27, rect.width, 16), AppText.Get(TextKey.Real), realStyle);
             if (Clicked(rect)) _earth.RestoreRealOrientation();
+        }
+
+        private void FlatEarthEntryButton(float left, float top)
+        {
+            if (_flatEarth == null) return;
+            var rect = new Rect(left + 12, top + 12, 44, 44);
+            GUI.color = Color.white;
+            GUI.DrawTexture(rect, _flatEarthButton, ScaleMode.ScaleToFit);
+            if (Clicked(rect)) _flatEarth.Open();
         }
 
         private void StatusPill(Rect rect)
