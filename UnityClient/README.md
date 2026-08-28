@@ -16,6 +16,12 @@ locally, restored on the next launch, and rendered through the same streamed mar
 
 No scene authoring is required: `TransparentEarthBootstrap` creates the camera, translucent Earth, horizon, targets, GPS provider, sensor provider, and instrument UI at runtime.
 
+## Google Mobile Ads
+
+The Android client uses the official Google Mobile Ads Unity package and requests a fixed bottom banner only after Google UMP reports that ads may be requested. The banner is hidden in Flat Earth mode, and the globe UI reserves its height when it is visible.
+
+`Assets/Resources/AdMobConfig.json` contains Google's test application and banner IDs by default. Before a release, register OverHorizon in AdMob, create an Android banner unit, replace both Android IDs, and set `useTestAds` to `false`. Configure the required privacy messages in the AdMob **Privacy & messaging** console; the in-app privacy entry point appears automatically whenever UMP requires it.
+
 ## Rendering and coordinates
 
 - Earth geometry uses a spherical WGS84 mean-radius approximation (`6371.0088 km`).

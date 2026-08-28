@@ -1,4 +1,5 @@
 using System;
+using TransparentEarth.App;
 using UnityEngine;
 
 namespace TransparentEarth.Store
@@ -23,25 +24,24 @@ namespace TransparentEarth.Store
         }
     }
 
-    /// <summary>
-    /// A store broker the "Flat Earther" upgrade can be wired to. The default implementation is a
-    /// local simulation so the feature is usable offline; drop in a Unity IAP / Google Play Billing
-    /// backed implementation and assign <see cref="FlatEarthEntitlement.Broker"/> at startup to
-    /// charge real money for the same product id.
-    /// </summary>
     public interface IFlatEarthPurchaseBroker
     {
         string ProductId { get; }
         string LocalizedPrice { get; }
+        bool IsReady { get; }
         bool OwnsProduct { get; }
         void Purchase(Action<bool, string> onComplete);
         void Restore(Action<bool, string> onComplete);
+        void ManageSubscription();
     }
 
+    /// <summary>
+    /// Session entitlement for the renewable Flat Earth subscription. Store ownership is the
+    /// source of truth: a local PlayerPrefs flag must never keep an expired subscription open.
+    /// </summary>
     public static class FlatEarthEntitlement
     {
-        public const string ProductId = "com.transparentearth.unity.flatearth";
-        private const string OwnedKey = "OverHorizon.FlatEarth.Owned.v1";
+        public const string ProductId = AppIdentity.FlatEarthSubscriptionId;
 
         private static IFlatEarthPurchaseBroker _broker;
 
@@ -50,58 +50,77 @@ namespace TransparentEarth.Store
 
         public static IFlatEarthPurchaseBroker Broker
         {
-            get => _broker ??= new SimulatedPurchaseBroker();
+            get => _broker ??= CreateDefaultBroker();
             set
             {
-                _broker = value;
-                if (IsUnlocked) SetState(new PurchaseState(PurchasePhase.Owned));
+                _broker = value ?? CreateDefaultBroker();
+                NotifyBrokerChanged();
             }
         }
 
         public static string LocalizedPrice => Broker.LocalizedPrice;
-
-        public static bool IsUnlocked =>
-            PlayerPrefs.GetInt(OwnedKey, 0) == 1 || Broker.OwnsProduct;
+        public static bool IsReady => Broker.IsReady;
+        public static bool IsUnlocked => Broker.OwnsProduct;
 
         public static void Purchase()
         {
             if (IsUnlocked)
             {
-                MarkOwned();
+                SetState(new PurchaseState(PurchasePhase.Owned));
+                return;
+            }
+
+            if (!Broker.IsReady)
+            {
+                SetState(new PurchaseState(PurchasePhase.Failed, "store unavailable"));
                 return;
             }
 
             SetState(new PurchaseState(PurchasePhase.Pending));
-            Broker.Purchase((success, message) =>
-            {
-                if (success) MarkOwned();
-                else SetState(new PurchaseState(PurchasePhase.Failed, message));
-            });
+            Broker.Purchase(CompleteStoreOperation);
         }
 
         public static void Restore()
         {
-            SetState(new PurchaseState(PurchasePhase.Pending));
-            Broker.Restore((success, message) =>
+            if (!Broker.IsReady)
             {
-                if (success) MarkOwned();
-                else SetState(new PurchaseState(PurchasePhase.Failed, message));
-            });
+                SetState(new PurchaseState(PurchasePhase.Failed, "store unavailable"));
+                return;
+            }
+
+            SetState(new PurchaseState(PurchasePhase.Pending));
+            Broker.Restore(CompleteStoreOperation);
         }
 
-        private static void MarkOwned()
+        public static void ManageSubscription() => Broker.ManageSubscription();
+
+        /// <summary>Called by the store service when price or entitlement changes.</summary>
+        public static void NotifyBrokerChanged()
         {
-            PlayerPrefs.SetInt(OwnedKey, 1);
-            PlayerPrefs.Save();
-            SetState(new PurchaseState(PurchasePhase.Owned));
+            if (_broker == null) return;
+            SetState(new PurchaseState(_broker.OwnsProduct ? PurchasePhase.Owned : PurchasePhase.Idle));
         }
 
-        /// Clears the local entitlement. Intended for tests and support tooling, not the UI.
+        private static void CompleteStoreOperation(bool success, string message)
+        {
+            SetState(success && Broker.OwnsProduct
+                ? new PurchaseState(PurchasePhase.Owned, message)
+                : new PurchaseState(PurchasePhase.Failed, message));
+        }
+
         public static void ResetForTesting()
         {
-            PlayerPrefs.DeleteKey(OwnedKey);
             _broker = null;
             SetState(new PurchaseState(PurchasePhase.Idle));
+        }
+
+        private static IFlatEarthPurchaseBroker CreateDefaultBroker()
+        {
+#if UNITY_EDITOR
+            return new SimulatedPurchaseBroker();
+#else
+            return new UnavailablePurchaseBroker();
+#endif
         }
 
         private static void SetState(PurchaseState state)
@@ -111,70 +130,39 @@ namespace TransparentEarth.Store
         }
     }
 
-    /// <summary>
-    /// Offline stand-in for a real storefront. Confirms the purchase after a short "processing"
-    /// delay and remembers it in <see cref="PlayerPrefs"/>. Replace with a billing-backed broker
-    /// for production.
-    /// </summary>
+    /// <summary>Editor-only stand-in used by EditMode tests and Play Mode previews.</summary>
     public sealed class SimulatedPurchaseBroker : IFlatEarthPurchaseBroker
     {
         private const string OwnedKey = "OverHorizon.FlatEarth.Simulated.v1";
 
         public string ProductId => FlatEarthEntitlement.ProductId;
-        public string LocalizedPrice => "€2.99";
+        public string LocalizedPrice => "€2.99 / month";
+        public bool IsReady => true;
         public bool OwnsProduct => PlayerPrefs.GetInt(OwnedKey, 0) == 1;
 
-        public void Purchase(Action<bool, string> onComplete) => Settle(onComplete);
-
-        public void Restore(Action<bool, string> onComplete)
-        {
-            if (OwnsProduct) onComplete?.Invoke(true, "restored");
-            else onComplete?.Invoke(false, "nothing to restore");
-        }
-
-        private void Settle(Action<bool, string> onComplete)
-        {
-            var runner = PurchaseCoroutineRunner.Instance;
-            if (runner == null)
-            {
-                Confirm(onComplete);
-                return;
-            }
-            runner.RunAfter(1.4f, () => Confirm(onComplete));
-        }
-
-        private void Confirm(Action<bool, string> onComplete)
+        public void Purchase(Action<bool, string> onComplete)
         {
             PlayerPrefs.SetInt(OwnedKey, 1);
             PlayerPrefs.Save();
             onComplete?.Invoke(true, "purchased");
         }
+
+        public void Restore(Action<bool, string> onComplete)
+        {
+            onComplete?.Invoke(OwnsProduct, OwnsProduct ? "restored" : "nothing to restore");
+        }
+
+        public void ManageSubscription() { }
     }
 
-    /// Minimal MonoBehaviour so the simulated broker can fake asynchronous storefront latency.
-    public sealed class PurchaseCoroutineRunner : MonoBehaviour
+    public sealed class UnavailablePurchaseBroker : IFlatEarthPurchaseBroker
     {
-        private static PurchaseCoroutineRunner _instance;
-
-        public static PurchaseCoroutineRunner Instance
-        {
-            get
-            {
-                if (_instance != null) return _instance;
-                if (!Application.isPlaying) return null;
-                var host = new GameObject("Flat Earth Purchase Runner");
-                UnityEngine.Object.DontDestroyOnLoad(host);
-                _instance = host.AddComponent<PurchaseCoroutineRunner>();
-                return _instance;
-            }
-        }
-
-        public void RunAfter(float seconds, Action action) => StartCoroutine(Delayed(seconds, action));
-
-        private static System.Collections.IEnumerator Delayed(float seconds, Action action)
-        {
-            yield return new WaitForSecondsRealtime(seconds);
-            action?.Invoke();
-        }
+        public string ProductId => FlatEarthEntitlement.ProductId;
+        public string LocalizedPrice => "—";
+        public bool IsReady => false;
+        public bool OwnsProduct => false;
+        public void Purchase(Action<bool, string> onComplete) => onComplete?.Invoke(false, "store unavailable");
+        public void Restore(Action<bool, string> onComplete) => onComplete?.Invoke(false, "store unavailable");
+        public void ManageSubscription() { }
     }
 }

@@ -12,9 +12,10 @@ namespace TransparentEarth.I18n
         TransparentEarth, BeyondHorizon, On, Off, GlobeLayers, Grid, Continents, Countries, References,
         Overview, Antipode, Map, Places, Profile, Real, Live, Demo, Kilometers,
         PlaceSearchTitle, PlaceSearchHint, Search, SearchResults, AddPlace, Added,
-        NoPlacesFound, SearchUnavailable, SavedPlaces,
-        FlatEarthMode, FlatEarthTitle, FlatEarthTagline, Unlock, RestorePurchase,
-        PurchasePending, PurchaseFailed, BackToGlobe, Azimuth, IceWall, NorthPoleHub,
+        NoPlacesFound, SearchUnavailable, SavedPlaces, PrivacyOptions,
+        FlatEarthMode, FlatEarthTitle, FlatEarthTagline, Subscribe, SubscriptionTerms,
+        RestorePurchase, ManageSubscription, StoreConnecting, PurchasePending, PurchaseFailed,
+        BackToGlobe, Azimuth, IceWall, NorthPoleHub,
         OneHorizonLine, WhereToLook, SecretInitiate, Gaze
     }
 
@@ -69,13 +70,17 @@ namespace TransparentEarth.I18n
             [TextKey.NoPlacesFound] = "NOTHING FOUND",
             [TextKey.SearchUnavailable] = "SEARCH UNAVAILABLE",
             [TextKey.SavedPlaces] = "SAVED PLACES",
+            [TextKey.PrivacyOptions] = "PRIVACY",
             [TextKey.FlatEarthMode] = "FLAT EARTHER MODE",
             [TextKey.FlatEarthTitle] = "Flat Earth Mode",
             [TextKey.FlatEarthTagline] =
                 "The sun, the moon and the four winds. Every city pinned to one honest line, " +
                 "the South Pole stretched round the ice wall, and a true bearing to steer by.",
-            [TextKey.Unlock] = "UNLOCK",
+            [TextKey.Subscribe] = "SUBSCRIBE",
+            [TextKey.SubscriptionTerms] = "Monthly auto-renewing subscription. Cancel anytime in Google Play.",
             [TextKey.RestorePurchase] = "RESTORE PURCHASE",
+            [TextKey.ManageSubscription] = "MANAGE SUBSCRIPTION",
+            [TextKey.StoreConnecting] = "CONNECTING TO GOOGLE PLAY…",
             [TextKey.PurchasePending] = "CONSULTING THE GUILD…",
             [TextKey.PurchaseFailed] = "THE BARGAIN FELL THROUGH",
             [TextKey.BackToGlobe] = "BACK TO THE GLOBE",
@@ -138,13 +143,18 @@ namespace TransparentEarth.I18n
             [TextKey.NoPlacesFound] = "НИЧЕГО НЕ НАЙДЕНО",
             [TextKey.SearchUnavailable] = "ПОИСК НЕДОСТУПЕН",
             [TextKey.SavedPlaces] = "СОХРАНЁННЫЕ МЕСТА",
+            [TextKey.PrivacyOptions] = "КОНФИДЕНЦИАЛЬНОСТЬ",
             [TextKey.FlatEarthMode] = "РЕЖИМ ПЛОСКОЗЕМЕЛЬЩИКА",
             [TextKey.FlatEarthTitle] = "Режим плоской земли",
             [TextKey.FlatEarthTagline] =
                 "Солнце, луна и четыре ветра. Все города — на одной честной линии, " +
                 "Южный полюс растянут по ледяной стене, а азимут укажет курс.",
-            [TextKey.Unlock] = "ОТКРЫТЬ",
+            [TextKey.Subscribe] = "ПОДПИСАТЬСЯ",
+            [TextKey.SubscriptionTerms] =
+                "Ежемесячная подписка с автопродлением. Отменить можно в Google Play.",
             [TextKey.RestorePurchase] = "ВОССТАНОВИТЬ ПОКУПКУ",
+            [TextKey.ManageSubscription] = "УПРАВЛЕНИЕ ПОДПИСКОЙ",
+            [TextKey.StoreConnecting] = "ПОДКЛЮЧЕНИЕ К GOOGLE PLAY…",
             [TextKey.PurchasePending] = "СОВЕТ С ГИЛЬДИЕЙ…",
             [TextKey.PurchaseFailed] = "СДЕЛКА СОРВАЛАСЬ",
             [TextKey.BackToGlobe] = "ВЕРНУТЬСЯ К ШАРУ",
@@ -207,13 +217,18 @@ namespace TransparentEarth.I18n
             [TextKey.NoPlacesFound] = "NEMA REZULTATA",
             [TextKey.SearchUnavailable] = "PRETRAGA NIJE DOSTUPNA",
             [TextKey.SavedPlaces] = "SAČUVANA MESTA",
+            [TextKey.PrivacyOptions] = "PRIVATNOST",
             [TextKey.FlatEarthMode] = "REŽIM RAVNOZEMLJAŠA",
             [TextKey.FlatEarthTitle] = "Režim ravne zemlje",
             [TextKey.FlatEarthTagline] =
                 "Sunce, mesec i četiri vetra. Svaki grad na jednoj poštenoj liniji, " +
                 "Južni pol razvučen po ledenom zidu, a azimut da drži kurs.",
-            [TextKey.Unlock] = "OTKLJUČAJ",
+            [TextKey.Subscribe] = "PRETPLATI SE",
+            [TextKey.SubscriptionTerms] =
+                "Mesečna pretplata sa automatskom obnovom. Otkažite bilo kada na Google Play-u.",
             [TextKey.RestorePurchase] = "OBNOVI KUPOVINU",
+            [TextKey.ManageSubscription] = "UPRAVLJAJ PRETPLATOM",
+            [TextKey.StoreConnecting] = "POVEZIVANJE SA GOOGLE PLAY-OM…",
             [TextKey.PurchasePending] = "DOGOVOR SA ESNAFOM…",
             [TextKey.PurchaseFailed] = "POGODBA JE PROPALA",
             [TextKey.BackToGlobe] = "NAZAD NA GLOBUS",

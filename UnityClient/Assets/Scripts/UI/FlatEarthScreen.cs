@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using TransparentEarth.Ads;
 using TransparentEarth.Data;
 using TransparentEarth.Geo;
 using TransparentEarth.I18n;
@@ -25,6 +26,7 @@ namespace TransparentEarth.UI
         private DevicePoseProvider _pose;
         private GeoObjectStreamer _streamer;
         private EarthRenderer _earth;
+        private AdMobService _ads;
 
         private Texture2D _parchment;
         private Texture2D _plate;
@@ -75,12 +77,13 @@ namespace TransparentEarth.UI
         public bool IsOpen => _open;
 
         public void Initialize(LocationProvider location, DevicePoseProvider pose,
-            GeoObjectStreamer streamer, EarthRenderer earth)
+            GeoObjectStreamer streamer, EarthRenderer earth, AdMobService ads)
         {
             _location = location;
             _pose = pose;
             _streamer = streamer;
             _earth = earth;
+            _ads = ads;
         }
 
         public void Toggle()
@@ -96,6 +99,7 @@ namespace TransparentEarth.UI
             _mapPan = Vector2.zero;
             _earth?.SetInteractionEnabled(false);
             _earth?.SetWorldRenderingEnabled(false);
+            _ads?.SetSuppressed(true);
             if (!_cartographyRequested)
             {
                 _cartographyRequested = true;
@@ -108,6 +112,7 @@ namespace TransparentEarth.UI
             _open = false;
             _earth?.SetInteractionEnabled(true);
             _earth?.SetWorldRenderingEnabled(true);
+            _ads?.SetSuppressed(false);
         }
 
         private void Update()
@@ -263,6 +268,7 @@ namespace TransparentEarth.UI
                 AppText.Get(TextKey.SecretInitiate), _creed);
             GUI.color = Color.white;
             DrawCloseButton(left, top, width);
+            DrawManageSubscriptionButton(left, top, width);
         }
 
         private void DrawHeader(float left, float top, float width)
@@ -651,7 +657,7 @@ namespace TransparentEarth.UI
 
         private void DrawPaywall(float left, float top, float width, float height)
         {
-            var card = new Rect(left + width * .5f - 165f, top + 96f, 330f, 372f);
+            var card = new Rect(left + width * .5f - 165f, top + 82f, 330f, 420f);
             GUI.color = new Color(1f, 1f, 1f, .96f);
             GUI.DrawTexture(card, _card);
             GUI.color = MedievalIconography.Ink;
@@ -666,8 +672,8 @@ namespace TransparentEarth.UI
             GUI.color = Color.white;
 
             var state = FlatEarthEntitlement.State;
-            var buy = new Rect(card.x + 24f, card.yMax - 118f, card.width - 48f, 46f);
-            GUI.color = state.Phase == PurchasePhase.Pending
+            var buy = new Rect(card.x + 24f, card.yMax - 142f, card.width - 48f, 46f);
+            GUI.color = state.Phase == PurchasePhase.Pending || !FlatEarthEntitlement.IsReady
                 ? new Color(.55f, .48f, .34f, 1f)
                 : MedievalIconography.Gilt;
             GUI.DrawTexture(buy, _white);
@@ -675,14 +681,22 @@ namespace TransparentEarth.UI
             var label = state.Phase switch
             {
                 PurchasePhase.Pending => AppText.Get(TextKey.PurchasePending),
-                _ => $"{AppText.Get(TextKey.Unlock)} · {FlatEarthEntitlement.LocalizedPrice}"
+                _ when !FlatEarthEntitlement.IsReady => AppText.Get(TextKey.StoreConnecting),
+                _ => $"{AppText.Get(TextKey.Subscribe)} · {FlatEarthEntitlement.LocalizedPrice}"
             };
             GUI.Label(buy, label, _button);
-            if (state.Phase != PurchasePhase.Pending && Clicked(buy)) FlatEarthEntitlement.Purchase();
+            if (state.Phase != PurchasePhase.Pending && FlatEarthEntitlement.IsReady && Clicked(buy))
+                FlatEarthEntitlement.Purchase();
 
-            var restore = new Rect(card.x + 24f, card.yMax - 64f, card.width - 48f, 24f);
+            GUI.color = MedievalIconography.Ink;
+            GUI.Label(new Rect(card.x + 24f, buy.yMax + 3f, card.width - 48f, 28f),
+                AppText.Get(TextKey.SubscriptionTerms), _small);
+            GUI.color = Color.white;
+
+            var restore = new Rect(card.x + 24f, card.yMax - 61f, card.width - 48f, 24f);
             GUI.Label(restore, AppText.Get(TextKey.RestorePurchase), _small);
-            if (state.Phase != PurchasePhase.Pending && Clicked(restore)) FlatEarthEntitlement.Restore();
+            if (state.Phase != PurchasePhase.Pending && FlatEarthEntitlement.IsReady && Clicked(restore))
+                FlatEarthEntitlement.Restore();
 
             if (state.Phase == PurchasePhase.Failed)
             {
@@ -691,6 +705,16 @@ namespace TransparentEarth.UI
                     AppText.Get(TextKey.PurchaseFailed), _small);
                 GUI.color = Color.white;
             }
+        }
+
+        private void DrawManageSubscriptionButton(float left, float top, float width)
+        {
+            if (!FlatEarthEntitlement.IsUnlocked) return;
+            var rect = new Rect(left + width - 174f, top + 48f, 166f, 22f);
+            GUI.color = MedievalIconography.Gilt;
+            GUI.Label(rect, AppText.Get(TextKey.ManageSubscription), _small);
+            GUI.color = Color.white;
+            if (Clicked(rect)) FlatEarthEntitlement.ManageSubscription();
         }
 
         private void DrawCloseButton(float left, float top, float width)

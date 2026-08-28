@@ -1,7 +1,9 @@
 {
   "name": "TransparentEarth.Runtime",
   "rootNamespace": "TransparentEarth",
-  "references": [],
+  "references": [
+    "Unity.Purchasing"
+  ],
   "includePlatforms": [],
   "excludePlatforms": [],
   "allowUnsafeCode": false,

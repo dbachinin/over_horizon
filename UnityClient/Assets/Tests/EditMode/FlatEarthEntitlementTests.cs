@@ -27,12 +27,12 @@ namespace TransparentEarth.Tests
         }
 
         [Test]
-        public void PurchaseUnlocksTheModeAndPersists()
+        public void PurchaseUnlocksTheModeThroughBrokerOwnership()
         {
             FlatEarthEntitlement.Purchase();
             Assert.That(FlatEarthEntitlement.IsUnlocked, Is.True);
             Assert.That(FlatEarthEntitlement.State.Phase, Is.EqualTo(PurchasePhase.Owned));
-            Assert.That(PlayerPrefs.GetInt("OverHorizon.FlatEarth.Owned.v1", 0), Is.EqualTo(1));
+            Assert.That(PlayerPrefs.GetInt("OverHorizon.FlatEarth.Simulated.v1", 0), Is.EqualTo(1));
         }
 
         [Test]
@@ -62,9 +62,11 @@ namespace TransparentEarth.Tests
         {
             public string ProductId => FlatEarthEntitlement.ProductId;
             public string LocalizedPrice => "$0.00";
+            public bool IsReady => true;
             public bool OwnsProduct => true;
             public void Purchase(System.Action<bool, string> onComplete) => onComplete(true, "ok");
             public void Restore(System.Action<bool, string> onComplete) => onComplete(true, "ok");
+            public void ManageSubscription() { }
         }
     }
 }

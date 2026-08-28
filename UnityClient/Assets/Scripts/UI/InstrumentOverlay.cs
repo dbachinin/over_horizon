@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
+using TransparentEarth.Ads;
 using TransparentEarth.Data;
 using TransparentEarth.Geo;
 using TransparentEarth.I18n;
@@ -23,6 +24,7 @@ namespace TransparentEarth.UI
         private GeoObjectStreamer _streamer;
         private EarthRenderer _earth;
         private FlatEarthScreen _flatEarth;
+        private AdMobService _ads;
         private Texture2D _panel;
         private Texture2D _mint;
         private Texture2D _white;
@@ -57,7 +59,7 @@ namespace TransparentEarth.UI
 
         public void Initialize(Camera sceneCamera, DevicePoseProvider pose, LocationProvider location,
             IReadOnlyList<CityMarkerView> markers, OpenStreetMapTileLoader map, GeoObjectStreamer streamer,
-            EarthRenderer earth, FlatEarthScreen flatEarth)
+            EarthRenderer earth, FlatEarthScreen flatEarth, AdMobService ads)
         {
             _camera = sceneCamera;
             _pose = pose;
@@ -67,6 +69,7 @@ namespace TransparentEarth.UI
             _streamer = streamer;
             _earth = earth;
             _flatEarth = flatEarth;
+            _ads = ads;
         }
 
         private void Awake()
@@ -95,7 +98,7 @@ namespace TransparentEarth.UI
             var scale = Mathf.Max(.85f, Screen.width / 430f);
             GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(scale, scale, 1));
             var width = safe.width / scale;
-            var height = safe.height / scale;
+            var height = (safe.height - (_ads?.BottomInsetPixels ?? 0)) / scale;
             var left = safe.x / scale;
             var top = (Screen.height - safe.yMax) / scale;
             _earth.SetInteractionEnabled(_tab == 0);
@@ -425,8 +428,19 @@ namespace TransparentEarth.UI
                 DrawSavedPlaces(left, contentTop + 25f, width, top + height - 66f);
 
             GUI.color = Color.white;
-            GUI.Label(new Rect(left + 20f, top + height - 88f, width - 40f, 18f),
+            var footerY = top + height - 88f;
+            var privacyWidth = _ads != null && _ads.PrivacyOptionsRequired ? 116f : 0f;
+            GUI.Label(new Rect(left + 20f, footerY, width - 40f - privacyWidth, 18f),
                 "© OpenStreetMap contributors · Nominatim", _small);
+            if (privacyWidth > 0f)
+            {
+                var privacyRect = new Rect(left + width - privacyWidth - 16f, footerY - 2f,
+                    privacyWidth, 22f);
+                GUI.color = TransparentEarthStyle.Mint;
+                GUI.Label(privacyRect, AppText.Get(TextKey.PrivacyOptions), _small);
+                GUI.color = Color.white;
+                if (Clicked(privacyRect)) _ads.ShowPrivacyOptions();
+            }
         }
 
         private void DrawPlaceResults(float left, float y, float width, float bottom)
