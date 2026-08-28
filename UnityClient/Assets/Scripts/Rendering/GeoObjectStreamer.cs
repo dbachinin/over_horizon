@@ -40,6 +40,7 @@ namespace TransparentEarth.Rendering
         public int LoadedZoneCount { get; private set; }
         public int NearbyPlaceCount => _nearbyPlaces.Count;
         public bool IsNearbyLoading => _loadingNearby;
+        public IReadOnlyList<City> NearbyPlaces => _nearbyPlaces;
         public IReadOnlyList<City> CustomPlaces => _customPlaces;
 
         public void Initialize(Transform root, Camera sceneCamera, EarthRenderer earth, LocationProvider location)

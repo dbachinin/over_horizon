@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using TransparentEarth.Data;
 using TransparentEarth.Geo;
@@ -29,6 +30,7 @@ namespace TransparentEarth.UI
         private Texture2D _plate;
         private Texture2D _sun;
         private Texture2D _moon;
+        private Texture2D _medievalAtlas;
         private Texture2D _rose;
         private Texture2D _arse;
         private Texture2D _white;
@@ -67,6 +69,7 @@ namespace TransparentEarth.UI
         private readonly List<Entry> _filtered = new();
         private GeoPoint _entriesFor;
         private int _entriesCustomCount = -1;
+        private int _entriesNearbyCount = -1;
         private bool _entriesReady;
 
         public bool IsOpen => _open;
@@ -194,6 +197,7 @@ namespace TransparentEarth.UI
             _plate = MedievalIconography.FlatEarthPlate(768);
             _sun = MedievalIconography.SunFace(112);
             _moon = MedievalIconography.MoonFace(112);
+            _medievalAtlas = Resources.Load<Texture2D>("MedievalAtlas");
             _rose = MedievalIconography.CompassRose(120);
             _arse = Resources.Load<Texture2D>("FlatEarthEntry") is { } entryIcon
                 ? entryIcon
@@ -239,7 +243,7 @@ namespace TransparentEarth.UI
             var discRect = new Rect(left + (width - discSize) * .5f, top + 74f, discSize, discSize);
             DrawDisc(discRect);
 
-            var stripRect = new Rect(left + 14f, discRect.yMax + 8f, width - 28f, 82f);
+            var stripRect = new Rect(left + 14f, discRect.yMax + 8f, width - 28f, 100f);
             DrawHorizonStrip(stripRect);
 
             var readoutRect = new Rect(left + 14f, stripRect.yMax + 6f, width - 28f, 44f);
@@ -264,8 +268,8 @@ namespace TransparentEarth.UI
         private void DrawHeader(float left, float top, float width)
         {
             GUI.color = Color.white;
-            GUI.DrawTexture(new Rect(left + 6, top + 2, 44, 44), _sun, ScaleMode.ScaleToFit);
-            GUI.DrawTexture(new Rect(left + width - 50, top + 2, 44, 44), _moon, ScaleMode.ScaleToFit);
+            DrawAtlasCell(new Rect(left + 4, top, 48, 48), 0, 0, _sun);
+            DrawAtlasCell(new Rect(left + width - 52, top, 48, 48), 1, 0, _moon);
             GUI.Label(new Rect(left + 54, top + 3, width - 108, 13),
                 AppText.Get(TextKey.FlatEarthMode), _eyebrow);
             GUI.Label(new Rect(left + 54, top + 15, width - 108, 22),
@@ -287,34 +291,42 @@ namespace TransparentEarth.UI
             var radius = rect.width * .46f * _mapZoom;
             var theta = _gazeAngle; // rotate the whole map by -theta so the gaze points up
 
-            // The disc stays centred in its frame (never clipped at the top); the map turns
-            // around the North Pole and the observer orbits with it.
-            var mapCenter = rect.center + _mapPan;
+            // The observer is the pivot: the map, North Pole and rim move around this anchor.
+            // Panning moves the whole observer-centred composition without changing its pivot.
+            var observerAnchor = rect.center + _mapPan;
             var obsDisc = FlatEarthProjection.DiscPoint(_location.Current);
+            var observerLocal = new Vector2(obsDisc.x * radius, -obsDisc.y * radius);
+            var unrotatedMapCenter = observerAnchor - observerLocal;
 
             Vector2 ToScreen(Vector2 disc) =>
-                mapCenter + Rotate(new Vector2(disc.x * radius, -disc.y * radius), -theta);
+                observerAnchor + Rotate(new Vector2(
+                    (disc.x - obsDisc.x) * radius,
+                    -(disc.y - obsDisc.y) * radius), -theta);
 
-            // The four winds sit behind the disc, tucked under its rim.
+            // Four engraved winds occupy the corners and blow toward the map.
             var frameCenter = rect.center;
             var frameRadius = rect.width * .46f;
+            var cornerOffset = (frameRadius - 8f) * .7071068f;
+            const float windSize = 64f;
             GUI.color = Color.white;
-            foreach (var wind in Enumerable.Range(0, 4))
-            {
-                var wa = (45f + wind * 90f) * Mathf.Deg2Rad;
-                var wp = frameCenter + new Vector2(Mathf.Cos(wa), -Mathf.Sin(wa)) * (frameRadius - 10f);
-                GUI.DrawTexture(new Rect(wp.x - 26f, wp.y - 26f, 52f, 52f), _winds[wind], ScaleMode.ScaleToFit);
-            }
+            DrawAtlasCell(CentredRect(frameCenter + new Vector2(-cornerOffset, -cornerOffset), windSize),
+                0, 1, _winds[1]);
+            DrawAtlasCell(CentredRect(frameCenter + new Vector2(cornerOffset, -cornerOffset), windSize),
+                1, 1, _winds[0]);
+            DrawAtlasCell(CentredRect(frameCenter + new Vector2(-cornerOffset, cornerOffset), windSize),
+                0, 2, _winds[2]);
+            DrawAtlasCell(CentredRect(frameCenter + new Vector2(cornerOffset, cornerOffset), windSize),
+                1, 2, _winds[3]);
 
             var savedMatrix = GUI.matrix;
             var scale = Mathf.Max(.85f, Screen.width / 430f);
-            var pivotScreen = mapCenter * scale;
+            var pivotScreen = observerAnchor * scale;
             GUI.matrix = Matrix4x4.TRS(pivotScreen, Quaternion.Euler(0f, 0f, -theta), Vector3.one)
                          * Matrix4x4.TRS(-pivotScreen, Quaternion.identity, Vector3.one)
                          * savedMatrix;
             GUI.color = Color.white;
             var d = rect.width * _mapZoom;
-            GUI.DrawTexture(new Rect(mapCenter.x - d * .5f, mapCenter.y - d * .5f, d, d),
+            GUI.DrawTexture(new Rect(unrotatedMapCenter.x - d * .5f, unrotatedMapCenter.y - d * .5f, d, d),
                 _plate, ScaleMode.ScaleToFit);
             GUI.matrix = savedMatrix;
 
@@ -347,7 +359,7 @@ namespace TransparentEarth.UI
                     AppText.Get(TextKey.NorthPoleHub), _small);
 
             MaskAround(rect);
-            DrawGazeWedge(mapCenter, rect);
+            DrawGazeWedge(observerAnchor, rect);
 
             if (rect.Contains(observer))
             {
@@ -413,6 +425,23 @@ namespace TransparentEarth.UI
             return new Vector2(v.x * c - v.y * s, v.x * s + v.y * c);
         }
 
+        private static Rect CentredRect(Vector2 center, float size) =>
+            new(center.x - size * .5f, center.y - size * .5f, size, size);
+
+        private void DrawAtlasCell(Rect destination, int column, int rowFromTop, Texture2D fallback)
+        {
+            if (_medievalAtlas == null)
+            {
+                GUI.DrawTexture(destination, fallback, ScaleMode.ScaleToFit);
+                return;
+            }
+
+            const float cellWidth = .5f;
+            const float cellHeight = 1f / 3f;
+            var uv = new Rect(column * cellWidth, (2 - rowFromTop) * cellHeight, cellWidth, cellHeight);
+            GUI.DrawTextureWithTexCoords(destination, _medievalAtlas, uv, true);
+        }
+
         private void DrawHorizonStrip(Rect rect)
         {
             GUI.color = new Color(1f, 1f, 1f, .35f);
@@ -421,30 +450,51 @@ namespace TransparentEarth.UI
             GUI.Label(new Rect(rect.x + 8f, rect.y + 4f, rect.width - 16f, 14f),
                 AppText.Get(TextKey.OneHorizonLine), _small);
 
-            var baseline = rect.y + rect.height * .62f;
+            var baseline = rect.yMax - 16f;
             const float pixelsPerDegree = 20f;
             GUI.color = MedievalIconography.Ink;
             GUI.DrawTexture(new Rect(rect.x + 6f, baseline - 1f, rect.width - 12f, 2f), _white);
 
             var heading = _pose != null ? _pose.HeadingDegrees : 0f;
             var half = (rect.width - 24f) * .5f;
+            var visible = new List<HorizonEntry>();
             foreach (var entry in _entries)
             {
                 var relative = Mathf.DeltaAngle(heading, (float)entry.Placement.AzimuthDegrees);
                 if (Mathf.Abs(relative) > 96f) continue;
                 var x = rect.center.x + relative / 96f * half;
                 var y = baseline - (float)entry.Placement.ElevationDegrees * pixelsPerDegree;
+                visible.Add(new HorizonEntry(entry, x, y));
                 var isSelected = entry.Key == _selectedKey;
                 GUI.color = isSelected ? MedievalIconography.Blood : MedievalIconography.Ink;
                 GUI.DrawTexture(new Rect(x - .75f, Mathf.Min(y, baseline), 1.5f, Mathf.Abs(y - baseline) + 1f), _white);
                 var dot = isSelected ? 7f : 4f;
                 GUI.DrawTexture(new Rect(x - dot * .5f, y - dot * .5f, dot, dot), _dot);
-                if (isSelected)
-                    GUI.Label(new Rect(x - 60f, y - 30f, 120f, 26f),
-                        $"{PlaceNames.Get(entry.City.Name).ToUpperInvariant()}\n{AppText.Get(TextKey.Azimuth)} {entry.Placement.AzimuthDegrees:000}°",
-                        _small);
                 var hit = new Rect(x - 10f, rect.y, 20f, rect.height);
                 if (Clicked(hit)) Select(entry.Key);
+            }
+
+            // Keep the strip readable: label the six closest visible places, plus the selected one.
+            var labelledKeys = visible.OrderBy(item => item.Entry.Placement.DistanceKm)
+                .Take(6).Select(item => item.Entry.Key).ToHashSet();
+            if (!string.IsNullOrEmpty(_selectedKey)) labelledKeys.Add(_selectedKey);
+            var tierRight = new[] { rect.x + 4f, rect.x + 4f, rect.x + 4f };
+            foreach (var item in visible.Where(item => labelledKeys.Contains(item.Entry.Key)).OrderBy(item => item.X))
+            {
+                var text = PlaceNames.Get(item.Entry.City.Name).ToUpperInvariant();
+                var labelWidth = Mathf.Clamp(_small.CalcSize(new GUIContent(text)).x + 8f, 34f, 92f);
+                var labelX = Mathf.Clamp(item.X - labelWidth * .5f, rect.x + 4f, rect.xMax - labelWidth - 4f);
+                var tier = 0;
+                while (tier < tierRight.Length - 1 && labelX < tierRight[tier] + 3f) tier++;
+                var labelY = rect.y + 18f + tier * 15f;
+                tierRight[tier] = labelX + labelWidth;
+                var labelColor = item.Entry.Key == _selectedKey
+                    ? MedievalIconography.Blood
+                    : MedievalIconography.Ink;
+                GUI.color = labelColor;
+                GUI.Label(new Rect(labelX, labelY, labelWidth, 13f), text, _small);
+                DrawLine(new Vector2(item.X, labelY + 12f), new Vector2(item.X, item.Y - 3f),
+                    .8f, labelColor);
             }
 
             GUI.color = MedievalIconography.Blood;
@@ -685,20 +735,28 @@ namespace TransparentEarth.UI
         private void RefreshEntries()
         {
             var custom = _streamer != null ? _streamer.CustomPlaces.Count : 0;
-            if (_entriesReady && custom == _entriesCustomCount &&
+            var nearby = _streamer != null ? _streamer.NearbyPlaces.Count : 0;
+            if (_entriesReady && custom == _entriesCustomCount && nearby == _entriesNearbyCount &&
                 GeoMath.DistanceKm(_entriesFor, _location.Current) < 2d)
                 return;
 
             _entriesFor = _location.Current;
             _entriesCustomCount = custom;
+            _entriesNearbyCount = nearby;
             _entriesReady = true;
             _entries.Clear();
 
-            var cities = CityCatalog.All.AsEnumerable();
-            if (_streamer != null) cities = cities.Concat(_streamer.CustomPlaces);
+            var cities = CityCatalog.All.ToList();
+            if (_streamer != null)
+            {
+                foreach (var city in _streamer.CustomPlaces.Concat(_streamer.NearbyPlaces))
+                    if (!cities.Any(existing => GeoObjectStreamer.AreSamePlace(existing, city))) cities.Add(city);
+            }
             foreach (var city in cities)
             {
-                var key = city.Name + "|" + city.Country;
+                var key = string.Join("|", city.Name, city.Country,
+                    city.Position.Latitude.ToString("F5", CultureInfo.InvariantCulture),
+                    city.Position.Longitude.ToString("F5", CultureInfo.InvariantCulture));
                 var placement = FlatEarthProjection.Place(_entriesFor, key, city.Position);
                 _entries.Add(new Entry(city, key, placement));
             }
@@ -866,6 +924,20 @@ namespace TransparentEarth.UI
                 City = city;
                 Key = key;
                 Placement = placement;
+            }
+        }
+
+        private readonly struct HorizonEntry
+        {
+            public readonly Entry Entry;
+            public readonly float X;
+            public readonly float Y;
+
+            public HorizonEntry(Entry entry, float x, float y)
+            {
+                Entry = entry;
+                X = x;
+                Y = y;
             }
         }
     }
