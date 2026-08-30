@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using TransparentEarth.Geo;
 using UnityEngine;
@@ -9,36 +10,56 @@ namespace TransparentEarth.Map
 {
     public sealed class OpenStreetMapTileLoader : MonoBehaviour
     {
-        private const int Zoom = 4;
+        public const int Zoom = 4;
         private const double MaximumLatitude = 85.05112878;
-        private bool _loading;
-        private int _tileX = int.MinValue;
-        private int _tileY = int.MinValue;
+        private readonly Dictionary<int, Texture2D> _tiles = new();
+        private readonly HashSet<int> _loading = new();
 
-        public Texture2D Texture { get; private set; }
-        public Vector2 MarkerUv { get; private set; } = new(.5f, .5f);
+        public bool IsLoading => _loading.Count > 0;
+        public bool HasTiles => _tiles.Count > 0;
         public string Error { get; private set; }
 
-        public void EnsureLoaded(GeoPoint antipode)
+        public static Vector2 WorldTile(GeoPoint point)
         {
             var n = 1 << Zoom;
-            var latitude = Math.Max(-MaximumLatitude, Math.Min(MaximumLatitude, antipode.Latitude));
-            var x = (GeoMath.NormalizeLongitude(antipode.Longitude) + 180d) / 360d * n;
+            var latitude = Math.Max(-MaximumLatitude, Math.Min(MaximumLatitude, point.Latitude));
+            var x = (GeoMath.NormalizeLongitude(point.Longitude) + 180d) / 360d * n;
             var latitudeRadians = latitude * Math.PI / 180d;
             var y = (1d - Math.Log(Math.Tan(latitudeRadians) + 1d / Math.Cos(latitudeRadians)) / Math.PI) / 2d * n;
-            var tileX = ((int)Math.Floor(x) % n + n) % n;
-            var tileY = Math.Max(0, Math.Min(n - 1, (int)Math.Floor(y)));
-            MarkerUv = new Vector2((float)(x - Math.Floor(x)), 1f - (float)(y - Math.Floor(y)));
-            if (_loading || (_tileX == tileX && _tileY == tileY && Texture != null)) return;
-            _tileX = tileX;
-            _tileY = tileY;
-            StartCoroutine(LoadTile(tileX, tileY));
+            return new Vector2((float)x, (float)y);
         }
 
-        private IEnumerator LoadTile(int x, int y)
+        public void EnsureLoaded(Vector2 centerTile)
         {
-            _loading = true;
-            Error = null;
+            var centerX = Mathf.FloorToInt(centerTile.x);
+            var centerY = Mathf.FloorToInt(centerTile.y);
+            var n = 1 << Zoom;
+            for (var offsetY = -1; offsetY <= 1; offsetY++)
+            for (var offsetX = -1; offsetX <= 1; offsetX++)
+            {
+                var rawY = centerY + offsetY;
+                if (rawY < 0 || rawY >= n) continue;
+                var x = NormalizeX(centerX + offsetX);
+                var key = TileKey(x, rawY);
+                if (_tiles.ContainsKey(key) || !_loading.Add(key)) continue;
+                Error = null;
+                StartCoroutine(LoadTile(x, rawY, key));
+            }
+        }
+
+        public bool TryGetTile(int tileX, int tileY, out Texture2D texture)
+        {
+            var n = 1 << Zoom;
+            if (tileY < 0 || tileY >= n)
+            {
+                texture = null;
+                return false;
+            }
+            return _tiles.TryGetValue(TileKey(NormalizeX(tileX), tileY), out texture);
+        }
+
+        private IEnumerator LoadTile(int x, int y, int key)
+        {
             var directory = Path.Combine(Application.persistentDataPath, "osm", Zoom.ToString());
             var path = Path.Combine(directory, $"{x}_{y}.png");
             if (File.Exists(path) && DateTime.UtcNow - File.GetLastWriteTimeUtc(path) < TimeSpan.FromDays(7))
@@ -46,8 +67,8 @@ namespace TransparentEarth.Map
                 var cached = new Texture2D(2, 2, TextureFormat.RGBA32, false);
                 if (cached.LoadImage(File.ReadAllBytes(path)))
                 {
-                    Texture = cached;
-                    _loading = false;
+                    _tiles[key] = cached;
+                    _loading.Remove(key);
                     yield break;
                 }
                 Destroy(cached);
@@ -60,14 +81,29 @@ namespace TransparentEarth.Map
             if (request.result != UnityWebRequest.Result.Success)
             {
                 Error = request.error;
-                _loading = false;
+                _loading.Remove(key);
                 yield break;
             }
 
-            Texture = DownloadHandlerTexture.GetContent(request);
+            _tiles[key] = DownloadHandlerTexture.GetContent(request);
             Directory.CreateDirectory(directory);
             File.WriteAllBytes(path, request.downloadHandler.data);
-            _loading = false;
+            _loading.Remove(key);
+        }
+
+        private static int NormalizeX(int x)
+        {
+            var n = 1 << Zoom;
+            return (x % n + n) % n;
+        }
+
+        private static int TileKey(int x, int y) => y * (1 << Zoom) + x;
+
+        private void OnDestroy()
+        {
+            foreach (var texture in _tiles.Values)
+                if (texture != null) Destroy(texture);
+            _tiles.Clear();
         }
     }
 }

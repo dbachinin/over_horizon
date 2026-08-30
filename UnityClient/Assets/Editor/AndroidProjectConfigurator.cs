@@ -158,21 +158,32 @@ namespace TransparentEarth.Editor
             serializedSettings.ApplyModifiedPropertiesWithoutUndo();
         }
 
+        [MenuItem("OverHorizon/Build Android APK (Debug Signed)")]
         public static void BuildAndroid()
         {
             EnsureProject();
-            Directory.CreateDirectory("Builds/Android");
-            var options = new BuildPlayerOptions
+            var previousUseCustomKeystore = PlayerSettings.Android.useCustomKeystore;
+            try
             {
-                scenes = new[] { ScenePath },
-                locationPathName = "Builds/Android/OverHorizon.apk",
-                target = BuildTarget.Android,
-                options = BuildOptions.Development
-            };
-            var report = BuildPipeline.BuildPlayer(options);
-            if (report.summary.result != BuildResult.Succeeded)
-                throw new BuildFailedException($"Android build failed: {report.summary.result}");
-            Debug.Log($"Android APK built: {report.summary.outputPath} ({report.summary.totalSize} bytes)");
+                // Local APKs use Unity's debug keystore and never require release passwords.
+                PlayerSettings.Android.useCustomKeystore = false;
+                Directory.CreateDirectory("Builds/Android");
+                var options = new BuildPlayerOptions
+                {
+                    scenes = new[] { ScenePath },
+                    locationPathName = "Builds/Android/OverHorizon.apk",
+                    target = BuildTarget.Android,
+                    options = BuildOptions.Development
+                };
+                var report = BuildPipeline.BuildPlayer(options);
+                if (report.summary.result != BuildResult.Succeeded)
+                    throw new BuildFailedException($"Android build failed: {report.summary.result}");
+                Debug.Log($"Android APK built: {report.summary.outputPath} ({report.summary.totalSize} bytes)");
+            }
+            finally
+            {
+                PlayerSettings.Android.useCustomKeystore = previousUseCustomKeystore;
+            }
         }
 
         [MenuItem("OverHorizon/Build Google Play AAB")]

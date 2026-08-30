@@ -55,6 +55,10 @@ namespace TransparentEarth.UI
         private bool _placeSearchStarted;
         private bool _placeSearching;
         private float _lastPlaceSearchAt = -10f;
+        private bool _antipodeMapInitialized;
+        private bool _antipodeMapDragging;
+        private Vector2 _antipodeMapCenterTile;
+        private Vector2 _antipodeMapLastPointer;
         private int _tab;
 
         public void Initialize(Camera sceneCamera, DevicePoseProvider pose, LocationProvider location,
@@ -306,20 +310,25 @@ namespace TransparentEarth.UI
         {
             var antipode = GeoMath.Antipode(_location.Current);
             var nearest = NearestAntipodeObject(antipode);
-            _map.EnsureLoaded(antipode);
+            var markerTile = OpenStreetMapTileLoader.WorldTile(antipode);
+            if (!_antipodeMapInitialized)
+            {
+                _antipodeMapCenterTile = markerTile;
+                _antipodeMapInitialized = true;
+            }
             var mapSize = width - 36;
             var mapRect = new Rect(left + 18, top + 92, mapSize, mapSize);
+            // The square map can geometrically extend under the bottom deck in short Game views.
+            // Keep its input viewport above navigation even though navigation is drawn on top.
+            var navigationTop = top + height - 58f;
+            var mapInputRect = mapRect;
+            mapInputRect.height = Mathf.Max(0f, Mathf.Min(mapRect.yMax, navigationTop) - mapRect.y);
+            HandleAntipodeMapPan(mapInputRect);
+            _map.EnsureLoaded(_antipodeMapCenterTile);
             GUI.color = Color.white;
-            if (_map.Texture != null)
+            if (_map.HasTiles)
             {
-                GUI.DrawTextureWithTexCoords(mapRect, _map.Texture, new Rect(0, 0, 1, 1), false);
-                var markerX = mapRect.x + _map.MarkerUv.x * mapRect.width;
-                var markerY = mapRect.y + (1f - _map.MarkerUv.y) * mapRect.height;
-                GUI.color = TransparentEarthStyle.Signal;
-                GUI.DrawTexture(new Rect(markerX - 10, markerY - 1, 20, 2), _white);
-                GUI.DrawTexture(new Rect(markerX - 1, markerY - 10, 2, 20), _white);
-                GUI.DrawTexture(new Rect(markerX - 4, markerY - 4, 8, 8), _white);
-                GUI.color = Color.white;
+                DrawMovableAntipodeMap(mapRect, markerTile);
             }
             else
             {
@@ -339,6 +348,10 @@ namespace TransparentEarth.UI
                 $"{antipode.Latitude:0.0000}°, {antipode.Longitude:0.0000}°", _title);
             GUI.Label(new Rect(mapRect.x + 8, mapRect.yMax - 24, mapRect.width - 16, 18),
                 "© OpenStreetMap contributors", _small);
+            GUI.color = TransparentEarthStyle.Mint;
+            GUI.Label(new Rect(mapRect.x + 8, mapRect.yMax - 43, mapRect.width - 16, 18),
+                AppText.Get(TextKey.MoveMap), _small);
+            GUI.color = Color.white;
             var factsRect = new Rect(mapRect.x, mapRect.yMax + 12, mapRect.width, 58);
             GUI.DrawTexture(factsRect, _panel);
             GUI.Label(new Rect(factsRect.x + 14, factsRect.y + 9, factsRect.width - 28, 18),
@@ -362,6 +375,77 @@ namespace TransparentEarth.UI
                 _markerMeta);
             DrawDirectionArrow(new Rect(objectRect.xMax - 68, objectRect.y + 32, 48, 48), (float)bearing);
             GUI.color = Color.white;
+        }
+
+        private void DrawMovableAntipodeMap(Rect mapRect, Vector2 markerTile)
+        {
+            var tileSize = mapRect.width;
+            var centerX = Mathf.FloorToInt(_antipodeMapCenterTile.x);
+            var centerY = Mathf.FloorToInt(_antipodeMapCenterTile.y);
+            GUI.BeginGroup(mapRect);
+            for (var y = centerY - 1; y <= centerY + 1; y++)
+            for (var x = centerX - 1; x <= centerX + 1; x++)
+            {
+                var tileRect = new Rect(
+                    (x - _antipodeMapCenterTile.x + .5f) * tileSize,
+                    (y - _antipodeMapCenterTile.y + .5f) * tileSize,
+                    tileSize, tileSize);
+                GUI.color = Color.white;
+                if (_map.TryGetTile(x, y, out var texture))
+                    GUI.DrawTexture(tileRect, texture, ScaleMode.StretchToFill, false);
+                else
+                    GUI.DrawTexture(tileRect, _panel);
+            }
+
+            var worldWidth = 1 << OpenStreetMapTileLoader.Zoom;
+            var markerDeltaX = markerTile.x - _antipodeMapCenterTile.x;
+            if (markerDeltaX > worldWidth * .5f) markerDeltaX -= worldWidth;
+            else if (markerDeltaX < -worldWidth * .5f) markerDeltaX += worldWidth;
+            var marker = new Vector2(
+                mapRect.width * .5f + markerDeltaX * tileSize,
+                mapRect.height * .5f + (markerTile.y - _antipodeMapCenterTile.y) * tileSize);
+            if (new Rect(0, 0, mapRect.width, mapRect.height).Contains(marker))
+            {
+                GUI.color = TransparentEarthStyle.Signal;
+                GUI.DrawTexture(new Rect(marker.x - 10, marker.y - 1, 20, 2), _white);
+                GUI.DrawTexture(new Rect(marker.x - 1, marker.y - 10, 2, 20), _white);
+                GUI.DrawTexture(new Rect(marker.x - 4, marker.y - 4, 8, 8), _white);
+            }
+            GUI.EndGroup();
+            GUI.color = Color.white;
+        }
+
+        private void HandleAntipodeMapPan(Rect mapRect)
+        {
+            var current = Event.current;
+            if (current == null) return;
+            switch (current.type)
+            {
+                case EventType.MouseDown when current.button == 0 && mapRect.Contains(current.mousePosition):
+                    _antipodeMapDragging = true;
+                    _antipodeMapLastPointer = current.mousePosition;
+                    current.Use();
+                    break;
+                case EventType.MouseDown when current.button == 0:
+                    // Do not let a missed MouseUp from a previous touch capture navigation later.
+                    _antipodeMapDragging = false;
+                    break;
+                case EventType.MouseDrag when _antipodeMapDragging:
+                {
+                    var delta = current.mousePosition - _antipodeMapLastPointer;
+                    _antipodeMapLastPointer = current.mousePosition;
+                    _antipodeMapCenterTile -= delta / Mathf.Max(1f, mapRect.width);
+                    var worldWidth = 1 << OpenStreetMapTileLoader.Zoom;
+                    _antipodeMapCenterTile.x = Mathf.Repeat(_antipodeMapCenterTile.x, worldWidth);
+                    _antipodeMapCenterTile.y = Mathf.Clamp(_antipodeMapCenterTile.y, .5f, worldWidth - .5f);
+                    current.Use();
+                    break;
+                }
+                case EventType.MouseUp when _antipodeMapDragging:
+                    _antipodeMapDragging = false;
+                    current.Use();
+                    break;
+            }
         }
 
         private GeographicObjectDirection NearestAntipodeObject(GeoPoint antipode)
