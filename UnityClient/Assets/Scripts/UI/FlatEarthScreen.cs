@@ -263,10 +263,6 @@ namespace TransparentEarth.UI
 
             // Header last so the disc's masked overflow never sits on top of it.
             DrawHeader(left, top, width);
-            GUI.color = MedievalIconography.Blood;
-            GUI.Label(new Rect(left + 96f, top + 40f, width - 108f, 30f),
-                AppText.Get(TextKey.SecretInitiate), _creed);
-            GUI.color = Color.white;
             DrawCloseButton(left, top, width);
             DrawManageSubscriptionButton(left, top, width);
         }
