@@ -3,6 +3,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
@@ -240,7 +241,16 @@ namespace TransparentEarth.Editor
                 if (ads.useTestAds) errors.Add("AdMob useTestAds must be false for a Play release.");
                 if (IsGoogleTestId(ads.androidAppId) || IsGoogleTestId(ads.androidBannerAdUnitId))
                     errors.Add("Replace Google's test AdMob IDs with OverHorizon production IDs.");
+                if (!IsValidAdMobAppId(ads.androidAppId))
+                    errors.Add("AdMob androidAppId must have format ca-app-pub-<publisher>~<app>.");
+                if (!IsValidAdMobAdUnitId(ads.androidBannerAdUnitId))
+                    errors.Add("AdMob androidBannerAdUnitId must have format ca-app-pub-<publisher>/<unit>.");
             }
+
+            ValidateGooglePlayTangle(errors);
+
+            if (string.IsNullOrWhiteSpace(AppIdentity.FlatEarthSubscriptionId))
+                errors.Add("Flat Earth subscription product ID is empty in AppIdentity.cs.");
 
             RequireEnvironment("OVERHORIZON_KEYSTORE_PATH", errors);
             RequireEnvironment("OVERHORIZON_KEYSTORE_PASS", errors);
@@ -292,6 +302,27 @@ namespace TransparentEarth.Editor
 
         private static bool IsGoogleTestId(string id) =>
             string.IsNullOrWhiteSpace(id) || id.Contains("3940256099942544");
+
+        private static bool IsValidAdMobAppId(string id) =>
+            !string.IsNullOrWhiteSpace(id) &&
+            Regex.IsMatch(id.Trim(), @"^ca-app-pub-\d+~\d+$");
+
+        private static bool IsValidAdMobAdUnitId(string id) =>
+            !string.IsNullOrWhiteSpace(id) &&
+            Regex.IsMatch(id.Trim(), @"^ca-app-pub-\d+/\d+$");
+
+        private static void ValidateGooglePlayTangle(
+            System.Collections.Generic.ICollection<string> errors)
+        {
+            var tangleType = AppDomain.CurrentDomain.GetAssemblies()
+                .Select(assembly => assembly.GetType(
+                    "UnityEngine.Purchasing.Security.GooglePlayTangle"))
+                .FirstOrDefault(type => type != null);
+            var populated = tangleType?.GetField("IsPopulated",
+                BindingFlags.Public | BindingFlags.Static)?.GetValue(null);
+            if (populated is not true)
+                errors.Add("GooglePlayTangle.cs is missing or IsPopulated is false; run the Receipt Obfuscator.");
+        }
 
         [Serializable]
         private sealed class AdMobBuildConfig

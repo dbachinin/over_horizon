@@ -2,7 +2,10 @@
   "name": "TransparentEarth.Runtime",
   "rootNamespace": "TransparentEarth",
   "references": [
-    "Unity.Purchasing"
+    "Unity.Purchasing",
+    "Unity.Purchasing.Security",
+    "Unity.Purchasing.SecurityCore",
+    "Unity.Purchasing.SecurityStub"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],
